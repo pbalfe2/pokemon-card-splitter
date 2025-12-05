@@ -8,7 +8,7 @@ app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
 PROCESSED_FOLDER = "processed"
 
-# 🔵 Put your Make Webhook URL here:
+# 🔵 Your Make Webhook URL:
 WEBHOOK_URL = "https://hook.us2.make.com/0t8oinao8c0yaumj3y81v8ncxgo8yp3n"
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -29,10 +29,11 @@ def upload_form():
 
     file = request.files["image"]
 
+    # Save uploaded image
     filepath = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(filepath)
 
-    # Process & send cards to Make.com
+    # Process image + send cropped cards to Make webhook
     results = extract_cards(
         image_path=filepath,
         output_folder=PROCESSED_FOLDER,
@@ -41,8 +42,8 @@ def upload_form():
 
     return jsonify({
         "cards_detected": len(results),
-        "sent_to_make": True,
-        "cropped_cards": results
+        "cropped_cards": results,
+        "sent_to_make": True
     })
 
 
