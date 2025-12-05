@@ -15,7 +15,7 @@ def send_to_make_webhook(file_path, webhook_url):
     return response.status_code
 
 
-def extract_cards(image_path, output_folder="processed", min_area=15000, webhook_url=None):
+def extract_cards(image_path, output_folder="processed", min_area=5000, webhook_url=None):
     """Detect, crop, and send Pokémon cards to Make."""
     
     os.makedirs(output_folder, exist_ok=True)
@@ -27,6 +27,11 @@ def extract_cards(image_path, output_folder="processed", min_area=15000, webhook
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     edged = cv2.Canny(blur, 50, 150)
+    kernel = np.ones((5,5), np.uint8)
+    dilated = cv2.dilate(edged, kernel, iterations=1)
+
+    cnts = cv2.findContours(dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
 
     # Find contours
     cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
