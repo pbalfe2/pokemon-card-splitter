@@ -4,11 +4,16 @@ import os
 
 app = Flask(__name__)
 
+# --------- CONFIGURATION ----------
 UPLOAD_FOLDER = "uploads"
 PROCESSED_FOLDER = "processed"
 
+# 🔵 Put your Make Webhook URL here:
+WEBHOOK_URL = "https://hook.us2.make.com/0t8oinao8c0yaumj3y81v8ncxgo8yp3n"
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
+# ---------------------------------
 
 @app.route("/")
 def home():
@@ -20,18 +25,26 @@ def upload_form():
         return render_template("upload.html")
 
     if "image" not in request.files:
-        return "No file uploaded", 400
+        return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files["image"]
+
     filepath = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(filepath)
 
-    result = extract_cards(filepath, output_folder=PROCESSED_FOLDER)
+    # Process & send cards to Make.com
+    results = extract_cards(
+        image_path=filepath,
+        output_folder=PROCESSED_FOLDER,
+        webhook_url=WEBHOOK_URL
+    )
 
     return jsonify({
-        "cards_detected": len(result),
-        "processed_cards": result
+        "cards_detected": len(results),
+        "sent_to_make": True,
+        "cropped_cards": results
     })
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
