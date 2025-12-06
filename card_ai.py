@@ -10,16 +10,15 @@ def identify_and_grade_card(image_path):
         img_b64 = base64.b64encode(f.read()).decode()
 
     prompt = """
-    You are an expert Pokémon card grading system.
-    Identify this card and return ONLY JSON:
-
+    Identify and grade this Pokémon card.
+    Return ONLY JSON with fields:
     {
-        "name": "",
-        "set": "",
-        "number": "",
-        "rarity": "",
-        "condition": "",
-        "notes": ""
+      "name": "",
+      "set": "",
+      "number": "",
+      "rarity": "",
+      "condition": "",
+      "notes": ""
     }
     """
 
@@ -29,10 +28,12 @@ def identify_and_grade_card(image_path):
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": prompt},
+                    { "type": "text", "text": prompt },
                     {
-                        "type": "image_url",
-                        "image_url": f"data:image/png;base64,{img_b64}"
+                        "type": "input_image",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{img_b64}"
+                        }
                     }
                 ]
             }

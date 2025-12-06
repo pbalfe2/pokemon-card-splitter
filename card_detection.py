@@ -10,8 +10,7 @@ def detect_card_boxes(image_path):
         img_b64 = base64.b64encode(f.read()).decode()
 
     prompt = """
-    Detect all Pokémon cards in this image.
-
+    Detect all Pokémon cards in the image.
     Return ONLY JSON:
     {
       "cards": [
@@ -26,10 +25,12 @@ def detect_card_boxes(image_path):
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": prompt},
+                    { "type": "text", "text": prompt },
                     {
-                        "type": "image_url",
-                        "image_url": f"data:image/png;base64,{img_b64}"
+                        "type": "input_image",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{img_b64}"
+                        }
                     }
                 ]
             }
@@ -38,5 +39,4 @@ def detect_card_boxes(image_path):
 
     output_text = response.choices[0].message.content
     data = json.loads(output_text)
-
     return data["cards"]
