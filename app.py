@@ -1,3 +1,4 @@
+# app.py
 import os
 import json
 import uuid
@@ -18,7 +19,7 @@ basic_auth = BasicAuth(app)
 
 WEBHOOK_URL = os.getenv("MAKE_WEBHOOK_URL")
 
-# Ensure folders exist
+# Ensure required folders exist
 for folder in ["uploads", "cropped", "static/thumbs", "session_data"]:
     os.makedirs(folder, exist_ok=True)
 
@@ -35,72 +36,80 @@ def upload():
     if request.method == "GET":
         return render_template("upload.html")
 
+    # ---------------------------
     # 1. Save uploaded image
+    # ---------------------------
     f = request.files["image"]
     fname = f"{uuid.uuid4()}.png"
     path = os.path.join("uploads", fname)
     f.save(path)
 
-    print("=== CARD DETECTION START:", path)
-
+    # ---------------------------
     # 2. Detect bounding boxes
-    det = detect_card_boxes(path)
+    # ---------------------------
+    detection = detect_card_boxes(path)
+    boxes = detection.get("cards", [])
     print("=== RAW DETECTION OUTPUT ===")
-    print(det)
+    print(detection)
 
-    boxes = det.get("cards", [])
-    if not isinstance(boxes, list):
-        boxes = []
-
-    # 3. Crop cards
-    cropped_paths = crop_cards(path, boxes)
+    # ---------------------------
+    # 3. Crop cards into images
+    # ---------------------------
+    cropped = crop_cards(path, boxes)
 
     cards = []
 
-    # 4. Identify & grade each card individually
-    for idx, cpath in enumerate(cropped_paths, start=1):
+    # ---------------------------
+    # 4. Process each cropped card
+    # ---------------------------
+    for idx, cpath in enumerate(cropped, start=1):
+
         print(f"=== CARD AI ANALYSIS: {cpath}")
 
+        # ---- AI identification (name, set, rarity, etc.) ----
         analysis = identify_and_grade_card(cpath)
 
-        # 5. Lookup live prices
-        prices = lookup_prices(
-            analysis.get("name", ""),
-            analysis.get("set", "")
-        )
+        # Clean condition → enforce TCG language if needed
+        condition = analysis.get("condition", "Near Mint")
 
-        # OR fallback to AI
-        auto_price = (
-            prices.get("best_price")
-            or analysis.get("price_ai_estimate")
-            or "N/A"
-        )
+        # ---- Live Price Lookup ----
+        prices = lookup_prices(analysis["name"], analysis["set"])
+        tcg = prices.get("tcgplayer")
+        mk = prices.get("cardmarket")
 
-        # 6. Thumbnail
-        thumb = f"static/thumbs/{uuid.uuid4()}.jpg"
-        create_thumbnail(cpath, thumb)
+        # Determine best auto price
+        auto_price = None
+        if tcg and tcg.get("market"):
+            auto_price = f"{tcg['market']} CAD"
+        elif mk and mk.get("trend"):
+            auto_price = f"{mk['trend']} CAD"
+        else:
+            auto_price = analysis.get("price_ai_estimate", "N/A")
 
-        # 7. Build card object for review.html (no nested dicts!)
+        # ---- Thumbnail ----
+        thumb_path = f"static/thumbs/{idx}.jpg"
+        create_thumbnail(cpath, thumb_path)
+
+        # ---- Collect card data ----
         cards.append({
             "id": idx,
             "image": cpath,
-            "image_thumb": thumb,
-
+            "image_thumb": thumb_path,
             "name": analysis.get("name"),
             "set": analysis.get("set"),
             "number": analysis.get("number"),
             "rarity": analysis.get("rarity"),
-            "condition": analysis.get("condition"),
-
+            "condition": condition,
             "price_ai_estimate": analysis.get("price_ai_estimate"),
 
-            # Live market prices
-            "tcg": prices.get("tcgplayer"),
-            "mk": prices.get("cardmarket"),
+            "tcg": tcg,
+            "mk": mk,
             "auto_price": auto_price
         })
 
-    # 8. Save session
+    # ---------------------------
+    # 5. Save session JSON
+    # ---------------------------
     session_id = str(uuid.uuid4())
     with open(f"session_data/{session_id}.json", "w") as f:
         json.dump(cards, f, indent=2)
@@ -113,7 +122,6 @@ def upload():
 def review(session_id):
     with open(f"session_data/{session_id}.json") as f:
         cards = json.load(f)
-
     return render_template("review.html", cards=cards, session_id=session_id)
 
 
@@ -134,32 +142,21 @@ def approve(session_id):
         cards = json.load(f)
 
     approved = []
-
     for card in cards:
-        cid = card["id"]
+        i = card["id"]
 
-        if f"approve_{cid}" in request.form:
-            card["name"] = request.form.get(f"name_{cid}")
-            card["set"] = request.form.get(f"set_{cid}")
-            card["number"] = request.form.get(f"number_{cid}")
-            card["rarity"] = request.form.get(f"rarity_{cid}")
-            card["condition"] = request.form.get(f"condition_{cid}")
+        if f"approve_{i}" in request.form:
 
-            # If user wants live prices
-            use_live = f"use_live_{cid}" in request.form
-            if use_live:
-                prices = lookup_prices(card["name"], card["set"])
-                card["price"] = (
-                    prices.get("best_price")
-                    or card.get("price_ai_estimate")
-                    or "N/A"
-                )
-            else:
-                card["price"] = request.form.get(f"price_{cid}")
+            card["name"] = request.form.get(f"name_{i}")
+            card["set"] = request.form.get(f"set_{i}")
+            card["number"] = request.form.get(f"number_{i}")
+            card["rarity"] = request.form.get(f"rarity_{i}")
+            card["condition"] = request.form.get(f"condition_{i}")
+            card["price"] = request.form.get(f"price_{i}")
 
             approved.append(card)
 
-    # Send to Make.com webhook
+    # Send to webhook (Make.com)
     requests.post(WEBHOOK_URL, json={"approved_cards": approved})
 
     return render_template("sent.html", count=len(approved))

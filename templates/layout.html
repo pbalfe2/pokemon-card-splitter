@@ -80,11 +80,15 @@
             border-bottom: 1px solid var(--border);
         }
 
-        .thumb {
-            width: 130px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-        }
+		.thumb {
+			width: 140px;
+			height: 200px;             /* fixed modern thumbnail height */
+			object-fit: cover;         /* prevents distortion */
+			border-radius: 10px;
+			border: 1px solid var(--border);
+			background: #fff;
+		}
+
 
         label {
             font-size: 14px;
