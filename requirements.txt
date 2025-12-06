@@ -1,7 +1,19 @@
+# ---- Flask & Server ----
 Flask==3.0.0
 flask-basicauth==0.2.0
 gunicorn==21.2.0
+
+# ---- Image Processing ----
+Pillow==10.4.0          # Latest version compatible with Python 3.13
+
+# ---- HTTP / Utils ----
 requests==2.31.0
-Pillow==10.1.0
-openai>=1.40.0
+
+# ---- GPT / AI ----
+openai==1.40.2          # Required for GPT-4o / GPT-5.1 Vision
+
+# ---- Safe JSON Repair ----
+json5==0.9.25
+
+# ---- Optional (but used in your scripts) ----
 python-dotenv==1.0.1
