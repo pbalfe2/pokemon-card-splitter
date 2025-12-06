@@ -70,20 +70,20 @@ def upload():
         thumb_path = f"static/thumbs/card_{index}.jpg"
         create_thumbnail(card_path, thumb_path)
 
-results.append({
-    "id": index,
-    "image": card_path,
-    "image_thumb": thumb_path,
-    "name": analysis.get("name", ""),
-    "set": analysis.get("set", ""),
-    "number": analysis.get("number", ""),
-    "rarity": analysis.get("rarity", ""),
-    "condition": analysis.get("condition", ""),
-    "price": analysis.get("price", "")
-})
+        # 5. FLATTEN ANALYSIS FOR TEMPLATE
+        results.append({
+            "id": index,
+            "image": card_path,
+            "image_thumb": thumb_path,
+            "name": analysis.get("name", ""),
+            "set": analysis.get("set", ""),
+            "number": analysis.get("number", ""),
+            "rarity": analysis.get("rarity", ""),
+            "condition": analysis.get("condition", ""),
+            "price": analysis.get("price", "")
+        })
 
-
-    # 5. Save session data
+    # 6. Save session data
     session_id = str(uuid.uuid4())
     session_file = f"session_data/{session_id}.json"
     with open(session_file, "w") as f:
@@ -121,6 +121,7 @@ def approve(session_id):
         i = card["id"]
         if f"approve_{i}" in request.form:
 
+            # Update approuved card fields
             card["name"] = request.form.get(f"name_{i}")
             card["set"] = request.form.get(f"set_{i}")
             card["number"] = request.form.get(f"number_{i}")
@@ -131,7 +132,8 @@ def approve(session_id):
             approved.append(card)
 
     # Send approved cards to Make
-    requests.post(WEBHOOK_URL, json={"approved_cards": approved})
+    if WEBHOOK_URL:
+        requests.post(WEBHOOK_URL, json={"approved_cards": approved})
 
     return render_template("sent.html", count=len(approved))
 
