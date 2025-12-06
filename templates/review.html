@@ -1,115 +1,43 @@
 {% extends "layout.html" %}
-{% block content %}
 
-<h2>Review & Approve Cards</h2>
+{% block content %}
+<h2>Review Your Cards</h2>
 
 <form method="POST" action="/approve/{{ session_id }}">
 
-{% for card in cards %}
-<div class="card-box">
-    <div class="thumb-col">
+    {% for card in cards %}
+    <div class="card-block">
         <img src="/{{ card.image_thumb }}" class="thumb">
-    </div>
 
-    <div class="info-col">
-        <h3>Card {{ loop.index }}</h3>
+        <div class="fields">
+            <label>Name:</label>
+            <input class="input" name="name_{{ card.id }}" value="{{ card.name }}">
 
-        <!-- Editable fields -->
-        <label>Name</label>
-        <input class="input" name="name_{{ loop.index }}" value="{{ card.analysis.name }}">
+            <label>Set:</label>
+            <input class="input" name="set_{{ card.id }}" value="{{ card.set }}">
 
-        <label>Set</label>
-        <input class="input" name="set_{{ loop.index }}" value="{{ card.analysis.set }}">
+            <label>Number:</label>
+            <input class="input" name="number_{{ card.id }}" value="{{ card.number }}">
 
-        <label>Number</label>
-        <input class="input" name="number_{{ loop.index }}" value="{{ card.analysis.number }}">
+            <label>Rarity:</label>
+            <input class="input" name="rarity_{{ card.id }}" value="{{ card.rarity }}">
 
-        <label>Rarity</label>
-        <input class="input" name="rarity_{{ loop.index }}" value="{{ card.analysis.rarity }}">
+            <label>Condition:</label>
+            <input class="input" name="condition_{{ card.id }}" value="{{ card.condition }}">
 
-        <label>Condition</label>
-        <input class="input" name="condition_{{ loop.index }}" value="{{ card.analysis.condition }}">
-
-        <!-- PRICE SECTION -->
-        <div id="prices_{{ loop.index }}" class="price-section">
-            <p>Loading prices...</p>
+            <label>AI Price Estimate:</label>
+            <input class="input" name="price_{{ card.id }}" value="{{ card.price_ai_estimate }}">
         </div>
 
-        <label>Chosen Price (CAD)</label>
-        <input class="input" id="price_{{ loop.index }}" name="price_{{ loop.index }}" value="">
-
         <label>
-            <input type="checkbox" name="approve_{{ loop.index }}" checked>
+            <input type="checkbox" name="approve_{{ card.id }}">
             Approve this card
         </label>
-
-        <button type="button" class="refresh-btn" onclick="refreshPrice({{ loop.index }})">
-            Refresh Prices
-        </button>
-
     </div>
-</div>
-{% endfor %}
+    <hr>
+    {% endfor %}
 
-<br>
-<button class="submit-btn">Send Approved Cards to Store</button>
+    <button type="submit" class="btn">Send to Webhook</button>
 
 </form>
-
-
-<script>
-// -------------------------------------------------------
-// Button: Apply selected price
-// -------------------------------------------------------
-function usePrice(i, value) {
-    document.getElementById("price_" + i).value = value;
-}
-
-
-// -------------------------------------------------------
-// Fetch multi-source GPT-5 pricing
-// -------------------------------------------------------
-function refreshPrice(i) {
-    const name = document.querySelector(`[name="name_${i}"]`).value;
-    const set  = document.querySelector(`[name="set_${i}"]`).value;
-
-    axios.post("/price_lookup_multi", { name, set }).then(res => {
-        const data = res.data;
-        const div = document.getElementById(`prices_${i}`);
-
-        div.innerHTML = `
-            <div class="price-block">
-                <strong>TCGPlayer (USD):</strong> $${data.tcgplayer_usd ?? "N/A"}
-                <a href="${data.tcgplayer_url}" target="_blank">View Listing</a>
-                <button type="button" onclick="usePrice(${i}, ${(data.tcgplayer_usd * data.fx_rate).toFixed(2)})">
-                    Use Price (CAD)
-                </button>
-            </div>
-
-            <div class="price-block">
-                <strong>eBay Sold Avg (USD):</strong> $${data.ebay_avg_usd ?? "N/A"}
-                <a href="${data.ebay_url}" target="_blank">View Sold Items</a>
-                <button type="button" onclick="usePrice(${i}, ${(data.ebay_avg_usd * data.fx_rate).toFixed(2)})">
-                    Use Price (CAD)
-                </button>
-            </div>
-
-            <div class="price-rec">
-                <strong>Recommended Price (CAD):</strong> $${data.recommended_cad ?? "N/A"}
-                <button type="button" onclick="usePrice(${i}, ${data.recommended_cad ?? 0})">
-                    Use Recommended
-                </button>
-            </div>
-        `;
-    });
-}
-
-// Auto-load prices on page load
-window.onload = () => {
-    {% for card in cards %}
-    refreshPrice({{ loop.index }});
-    {% endfor %}
-};
-</script>
-
 {% endblock %}
