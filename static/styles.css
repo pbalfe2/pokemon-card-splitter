@@ -1,0 +1,78 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f5f6fa;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    width: 900px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.title {
+    margin-bottom: 10px;
+}
+
+.card-box {
+    display: flex;
+    border: 1px solid #ccc;
+    margin-bottom: 20px;
+    padding: 12px;
+    border-radius: 6px;
+    background: #fafafa;
+}
+
+.thumb-col {
+    width: 160px;
+}
+.thumb {
+    width: 150px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.info-col {
+    flex: 1;
+    padding-left: 20px;
+}
+
+.input {
+    width: 95%;
+    padding: 6px;
+    margin-bottom: 10px;
+}
+
+.price-section {
+    background: #eef1f5;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+
+.price-block {
+    margin-bottom: 10px;
+}
+
+.price-rec {
+    padding: 8px;
+    background: #d1ffe1;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+.submit-btn, .refresh-btn {
+    padding: 10px 16px;
+    background: #007bff;
+    border: none;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.submit-btn:hover, .refresh-btn:hover {
+    background: #0056c1;
+}

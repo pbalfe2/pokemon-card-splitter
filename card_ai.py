@@ -1,65 +1,47 @@
 import base64
 import json
-import os
 from openai import OpenAI
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI()
 
-def clean_json_output(text):
-    if not text:
-        return ""
-    return (
-        text.replace("```json", "")
-            .replace("```", "")
-            .strip()
-    )
+# ------------------------------------------------------------
+# Helper: Load an image as base64 (for GPT-5 vision)
+# ------------------------------------------------------------
+def load_image_base64(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
 
-def try_parse_json(text):
-    try:
-        return json.loads(text)
-    except:
-        return None
 
-def repair_json_with_gpt(bad_text):
-    prompt = f"""
-    The following response was supposed to be JSON but isn't:
-
-    {bad_text}
-
-    Repair it and return ONLY valid JSON with keys:
-    name, set, number, rarity, condition, price
-    """
-    resp = client.chat.completions.create(
-        model="gpt-5.1-mini",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return clean_json_output(resp.choices[0].message.content)
-
+# ------------------------------------------------------------
+# CARD IDENTIFICATION + CONDITION ANALYSIS
+# ------------------------------------------------------------
 def identify_and_grade_card(image_path):
-    """Identify + grade Pokémon card using GPT-5.1 multimodal."""
+    """
+    Sends the cropped card image to GPT-5 for:
+    - name
+    - set
+    - number
+    - rarity
+    - condition guess
+    """
 
-    # Convert image to base64
-    with open(image_path, "rb") as f:
-        img_b64 = base64.b64encode(f.read()).decode()
+    b64 = load_image_base64(image_path)
 
     prompt = """
-    Analyze this Pokémon card and return information in JSON only:
+You are analyzing a Pokémon TCG card image.
 
-    {
-      "name": "",
-      "set": "",
-      "number": "",
-      "rarity": "",
-      "condition": "",
-      "price": 0
-    }
+Extract ONLY the following fields in JSON:
+- name
+- set
+- number
+- rarity
+- condition (estimate Near Mint / Lightly Played / Moderately Played)
 
-    - "condition" must be NM, LP, MP, HP, or DMG
-    - "price" must be a realistic Canadian market estimate
-    """
+Respond in pure JSON only.
+"""
 
-    resp = client.chat.completions.create(
-        model="gpt-5.1",
+    response = client.chat.completions.create(
+        model="gpt-5o-mini",
         messages=[
             {
                 "role": "user",
@@ -68,7 +50,7 @@ def identify_and_grade_card(image_path):
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/png;base64,{img_b64}"
+                            "url": f"data:image/png;base64,{b64}"
                         }
                     }
                 ]
@@ -76,31 +58,89 @@ def identify_and_grade_card(image_path):
         ]
     )
 
-    raw = resp.choices[0].message.content
-    print("==== RAW GPT-5.1 CARD AI OUTPUT ====")
-    print(raw)
+    raw = response.choices[0].message.content.strip()
 
-    cleaned = clean_json_output(raw)
-    data = try_parse_json(cleaned)
+    # Validate JSON response
+    try:
+        return json.loads(raw)
+    except:
+        return {
+            "name": "",
+            "set": "",
+            "number": "",
+            "rarity": "",
+            "condition": "Unknown"
+        }
 
-    if data:
-        return data
 
-    print("WARNING: Card AI JSON invalid. Attempting repair…")
+# ------------------------------------------------------------
+# MULTI-SOURCE PRICING (North America only)
+# ------------------------------------------------------------
+def lookup_prices(name, set_name):
+    """
+    Uses GPT-5 web search to fetch:
+    - TCGPlayer USD price
+    - eBay sold USD average
+    - USD→CAD conversion
+    - Recommended CAD price
+    Returns clean JSON for UI.
+    """
 
-    repaired = repair_json_with_gpt(raw)
-    repaired_json = try_parse_json(repaired)
+    query = f"""
+Find live North American market prices for this Pokémon TCG card:
 
-    if repaired_json:
-        return repaired_json
+Name: {name}
+Set: {set_name}
 
-    print("ERROR: Returning fallback defaults.")
+Return strictly JSON with:
+- tcgplayer_usd (market price)
+- tcgplayer_url (search link)
+- ebay_avg_usd (average sold price last 10–20 sales, US+Canada)
+- ebay_url (completed sold items link)
+- fx_rate (USD→CAD live conversion)
+- recommended_cad (a fair selling price in CAD)
 
-    return {
-        "name": "Unknown Card",
-        "set": "",
-        "number": "",
-        "rarity": "",
-        "condition": "Unknown",
-        "price": 0
-    }
+No text outside JSON.
+"""
+
+    response = client.responses.create(
+        model="gpt-5.1",
+        reasoning={"effort": "medium"},
+        input=[{"role": "user", "content": query}],
+        max_output_tokens=300
+    )
+
+    raw = response.output_text.strip()
+
+    # Fallback safety
+    try:
+        data = json.loads(raw)
+    except:
+        return {
+            "tcgplayer_usd": None,
+            "tcgplayer_url": "",
+            "ebay_avg_usd": None,
+            "ebay_url": "",
+            "fx_rate": 1.35,
+            "recommended_cad": None
+        }
+
+    # Ensure all keys exist
+    data.setdefault("tcgplayer_usd", None)
+    data.setdefault("tcgplayer_url", "")
+    data.setdefault("ebay_avg_usd", None)
+    data.setdefault("ebay_url", "")
+    data.setdefault("fx_rate", 1.35)
+
+    # Compute recommended CAD price
+    if data["tcgplayer_usd"] and data["ebay_avg_usd"]:
+        avg_usd = (data["tcgplayer_usd"] + data["ebay_avg_usd"]) / 2
+        data["recommended_cad"] = round(avg_usd * data["fx_rate"], 2)
+    elif data["tcgplayer_usd"]:
+        data["recommended_cad"] = round(data["tcgplayer_usd"] * data["fx_rate"], 2)
+    elif data["ebay_avg_usd"]:
+        data["recommended_cad"] = round(data["ebay_avg_usd"] * data["fx_rate"], 2)
+    else:
+        data["recommended_cad"] = None
+
+    return data

@@ -1,7 +1,11 @@
-Flask
-Flask-BasicAuth
-Pillow
-openai
-requests
-python-dotenv
-gunicorn
+Flask==3.0.0
+flask-basicauth==0.2.0
+gunicorn==21.2.0
+requests==2.31.0
+Pillow==10.1.0
+
+# Latest official OpenAI Python SDK (required for GPT-4o, GPT-5, Responses API, Vision)
+openai>=1.40.0
+
+# To ensure JSON repair and web-search operations behave consistently
+python-dotenv==1.0.1

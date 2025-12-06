@@ -1,7 +1,10 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="alert alert-success">
-    <strong>{{ count }}</strong> cards have been sent to the store successfully!
-</div>
-<a href="/upload" class="btn btn-primary">Upload more</a>
+
+<h2>Cards Sent</h2>
+
+<p>{{ count }} cards were successfully sent to your automation workflow.</p>
+
+<a href="/upload">Upload another card sheet</a>
+
 {% endblock %}

@@ -1,10 +1,13 @@
 {% extends "layout.html" %}
 {% block content %}
-<h2>Upload Pokémon Cards</h2>
 
-<form method="POST" enctype="multipart/form-data" class="mt-3">
-    <input type="file" name="image" required class="form-control">
-    <button class="btn btn-success mt-3">Process Cards</button>
+<h2>Upload Card Sheet</h2>
+
+<form action="/upload" method="POST" enctype="multipart/form-data">
+    <label>Select image:</label>
+    <input type="file" name="image" required>
+    <br><br>
+    <button type="submit" class="btn">Upload</button>
 </form>
 
 {% endblock %}

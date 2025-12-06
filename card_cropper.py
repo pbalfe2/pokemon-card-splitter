@@ -1,39 +1,41 @@
 from PIL import Image
 import os
-import uuid
 
-def crop_cards(original_path, boxes):
-    cropped_paths = []
-    img = Image.open(original_path)
+# ------------------------------------------------------------
+# Crop cards from the source image using bounding boxes
+# ------------------------------------------------------------
+def crop_cards(src_path, boxes):
+    img = Image.open(src_path)
+
+    cropped_files = []
+    index = 1
 
     for box in boxes:
-        x = box["x"]
-        y = box["y"]
-        w = box["width"]
-        h = box["height"]
+        x = int(box["x"])
+        y = int(box["y"])
+        w = int(box["width"])
+        h = int(box["height"])
 
-        crop = img.crop((x, y, x + w, y + h))
+        cropped = img.crop((x, y, x + w, y + h))
 
-        # force RGB output (no PNG alpha problems)
-        crop = crop.convert("RGB")
+        path = f"cropped/card_{index}.png"
+        cropped.save(path)
+        cropped_files.append(path)
 
-        filename = f"cropped/card_{uuid.uuid4()}.jpg"
-        os.makedirs("cropped", exist_ok=True)
-        crop.save(filename, "JPEG", quality=95)
+        index += 1
 
-        cropped_paths.append(filename)
-
-    return cropped_paths
+    return cropped_files
 
 
-def create_thumbnail(input_path, output_path, size=(300, 300)):
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+# ------------------------------------------------------------
+# Create thumbnail (auto-converts RGBA → RGB for JPEG)
+# ------------------------------------------------------------
+def create_thumbnail(src_path, output_path, size=(200, 200)):
+    img = Image.open(src_path)
 
-    img = Image.open(input_path)
-
-    # Convert to RGB to avoid RGBA → JPEG crash
-    if img.mode in ("RGBA", "LA"):
+    # Fix: JPEG cannot save RGBA images
+    if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
 
     img.thumbnail(size)
-    img.save(output_path, "JPEG", quality=90)
+    img.save(output_path, "JPEG")

@@ -1,65 +1,43 @@
-import base64
 import json
-import os
+import base64
 from openai import OpenAI
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI()
 
-def clean_json_output(text):
-    if not text:
-        return ""
-    return (
-        text.replace("```json", "")
-            .replace("```", "")
-            .strip()
-    )
 
-def try_parse_json(text):
-    try:
-        return json.loads(text)
-    except:
-        return None
+def load_image_base64(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
 
-def repair_json_with_gpt(bad_text):
-    prompt = f"""
-    The following output should be JSON but isn't:
 
-    {bad_text}
-
-    Fix it and return ONLY valid JSON with the structure:
-    {{
-      "cards": [
-        {{"index":1, "x":0, "y":0, "width":0, "height":0}}
-      ]
-    }}
-    """
-    resp = client.chat.completions.create(
-        model="gpt-5.1-mini",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return clean_json_output(resp.choices[0].message.content)
-
+# ------------------------------------------------------------
+# DETECT CARD POSITIONS USING GPT-5 VISION
+# ------------------------------------------------------------
 def detect_card_boxes(image_path):
-    """Use GPT-5.1 Vision to detect card bounding boxes."""
-    
-    with open(image_path, "rb") as f:
-        img_b64 = base64.b64encode(f.read()).decode()
+    """
+    Uses GPT-5 to detect Pokémon card boundaries.
+    Returns list of boxes: [{x, y, width, height}, ...]
+    """
+
+    b64 = load_image_base64(image_path)
 
     prompt = """
-    Detect all Pokémon trading cards in the image.
-    Return ONLY valid JSON with this structure:
+You are processing an image containing Pokémon cards arranged on a grid.
 
-    {
-      "cards": [
-        {"index":1, "x":0, "y":0, "width":0, "height":0}
-      ]
-    }
+Your job: Detect EACH card and return a JSON array of rectangles.
 
-    Coordinates must reference exact pixel locations.
-    """
+Important rules:
+- Return ONLY JSON.
+- No comments, no explanations.
+- Each card must be an object:
+  { "x": INT, "y": INT, "width": INT, "height": INT }
+- Ensure coordinates are integers.
+- Ensure cropping does not cut off the card edges.
+"""
 
+    # CALL GPT-5 vision
     response = client.chat.completions.create(
-        model="gpt-5.1",
+        model="gpt-5o-mini",
         messages=[
             {
                 "role": "user",
@@ -68,7 +46,7 @@ def detect_card_boxes(image_path):
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/png;base64,{img_b64}"
+                            "url": f"data:image/png;base64,{b64}"
                         }
                     }
                 ]
@@ -76,21 +54,46 @@ def detect_card_boxes(image_path):
         ]
     )
 
-    raw = response.choices[0].message.content
-    print("==== RAW GPT-5.1 DETECTION OUTPUT ====")
-    print(raw)
+    raw_output = response.choices[0].message.content.strip()
 
-    cleaned = clean_json_output(raw)
-    data = try_parse_json(cleaned)
-    if data:
-        return data.get("cards", [])
+    print("==== RAW GPT OUTPUT (DETECTION) ====")
+    print(raw_output)
 
-    print("WARNING: Detection JSON invalid. Attempting repair...")
+    # ------------------------------------------------------------
+    # 1. Try to parse JSON directly
+    # ------------------------------------------------------------
+    try:
+        boxes = json.loads(raw_output)
+        if isinstance(boxes, dict) and "cards" in boxes:
+            return boxes["cards"]
+        if isinstance(boxes, list):
+            return boxes
+    except:
+        print("WARNING: JSON failed to parse. Attempting repair...")
 
-    repaired = repair_json_with_gpt(raw)
-    repaired_data = try_parse_json(repaired)
-    if repaired_data:
-        return repaired_data.get("cards", [])
+    # ------------------------------------------------------------
+    # 2. Attempt JSON recovery (extract substring between {...})
+    # ------------------------------------------------------------
+    try:
+        start = raw_output.find("{")
+        end = raw_output.rfind("}") + 1
+        cleaned = raw_output[start:end]
 
-    print("ERROR: Unable to repair JSON. Returning empty list.")
+        print("==== REPAIRED JSON ATTEMPT ====")
+        print(cleaned)
+
+        boxes = json.loads(cleaned)
+
+        if isinstance(boxes, dict) and "cards" in boxes:
+            return boxes["cards"]
+        if isinstance(boxes, list):
+            return boxes
+
+    except Exception as e:
+        print("ERROR: JSON could not be repaired. Returning empty list.")
+        print(e)
+
+    # ------------------------------------------------------------
+    # Fallback empty list
+    # ------------------------------------------------------------
     return []
