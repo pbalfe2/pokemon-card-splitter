@@ -18,13 +18,13 @@ def lookup_prices(name, set_name):
         "source": "TCGPlayer",
         "url": tcg_url,
         "currency": "CAD",
-        "price": round(15 * USD_TO_CAD, 2)  # mock price (API key needed for real value)
+        "price": round(15 * USD_TO_CAD, 2)  # mock price
     })
 
     # ------------------------------
     # 2) CardMarket
     # ------------------------------
-    mk_url = fhttps://www.cardmarket.com/en/Pokemon/Products/Search?searchString={safe}"
+    mk_url = f"https://www.cardmarket.com/en/Pokemon/Products/Search?searchString={safe}"
     results.append({
         "source": "CardMarket",
         "url": mk_url,
