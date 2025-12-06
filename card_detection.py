@@ -1,7 +1,7 @@
 import base64
 import json
-from openai import OpenAI
 import os
+from openai import OpenAI
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -11,19 +11,27 @@ def detect_card_boxes(image_path):
 
     prompt = """
     Detect all Pokémon cards in the image.
-    Return ONLY JSON:
+    Return JSON ONLY:
     {
-      "cards": [
-        {"index": 1, "x":..., "y":..., "width":..., "height":...}
-      ]
+        "cards": [
+          {"index":1, "x":0, "y":0, "width":0, "height":0}
+        ]
     }
     """
 
     response = client.responses.create(
         model="gpt-4o",
         input=[
-            {"type": "text", "text": prompt},
-            {"type": "input_image", "image_url": f"data:image/png;base64,{img_b64}"}
+            {
+                "role": "user",
+                "type": "message",
+                "content": prompt
+            },
+            {
+                "role": "user",
+                "type": "input_image",
+                "image_url": f"data:image/png;base64,{img_b64}"
+            }
         ]
     )
 
