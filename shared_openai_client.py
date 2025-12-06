@@ -5,19 +5,10 @@ from openai import OpenAI
 
 def get_openai_client():
     """
-    Safe OpenAI client constructor.
-    Handles Render's injected proxy variables properly.
+    Render-compatible OpenAI client.
+    No proxy settings, no custom client_options.
+    The SDK automatically respects environment routing.
     """
-
-    proxies = {}
-    if "HTTP_PROXY" in os.environ:
-        proxies["http"] = os.environ["HTTP_PROXY"]
-    if "HTTPS_PROXY" in os.environ:
-        proxies["https"] = os.environ["HTTPS_PROXY"]
-
     return OpenAI(
-        api_key=os.getenv("OPENAI_API_KEY"),
-        client_options={
-            "proxies": proxies if proxies else None
-        }
+        api_key=os.getenv("OPENAI_API_KEY")
     )
