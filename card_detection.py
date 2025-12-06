@@ -7,61 +7,61 @@ from shared_openai_client import get_openai_client
 
 def detect_card_boxes(image_path: str):
     """
-    Sends the uploaded image to GPT-4.1/GPT-5 vision model to detect Pokémon card bounding boxes.
-    Returns a list of dicts: {index, x, y, width, height}
+    Uses GPT-4.1 (or GPT-4o) vision to detect Pokémon card bounding boxes.
+    Compatible with ALL OpenAI Python client versions on Render.
     """
 
     print(f"=== CARD DETECTION START: {image_path}")
 
     client = get_openai_client()
 
-    # Read image as base64
+    # Load image to base64
     with open(image_path, "rb") as f:
-        b64_image = base64.b64encode(f.read()).decode("utf-8")
+        b64_image = base64.b64encode(f.read()).decode()
 
-    prompt_text = """
-You are a Pokémon trading card image detector.
-
-Your job:
-- Analyze the scanned image.
-- Detect all Pokémon cards present.
-- Return JSON ONLY with this structure:
+    system_prompt = """
+You are a Pokémon card detector.
+Return ONLY JSON structured like:
 
 {
   "cards": [
-    {"index": 1, "x": 0, "y": 0, "width": 200, "height": 300},
-    ...
+    {"index": 1, "x": 0, "y": 0, "width": 200, "height": 300}
   ]
 }
 
 Rules:
-- DO NOT include explanations.
-- DO NOT output ```json blocks.
-- Only raw JSON.
-    """
+- Do NOT explain anything.
+- Do NOT include backticks.
+- JSON only.
+"""
 
-    # Use the *new* Responses API (OpenAI >= 1.61.1)
-    response = client.responses.create(
-        model="gpt-4.1",  # can be updated to gpt-5-vision when available
-        input=[
-            {"role": "system", "content": prompt_text},
+    # Use chat.completions API → 100% supported everywhere
+    response = client.chat.completions.create(
+        model="gpt-4.1",  # can be gpt-4o or gpt-5 later
+        messages=[
+            {"role": "system", "content": system_prompt},
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Analyze this Pokémon card sheet image."},
                     {
-                        "type": "input_image",
-                        "image_url": f"data:image/png;base64,{b64_image}"
-                    }
-                ]
-            }
-        ]
+                        "type": "text",
+                        "text": "Analyze this image and extract bounding boxes of all Pokémon cards.",
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": f"data:image/png;base64,{b64_image}",
+                    },
+                ],
+            },
+        ],
+        temperature=0,
     )
 
-    raw_output = response.output_text
-    print("=== RAW GPT DETECTION OUTPUT ===")
+    raw_output = response.choices[0].message.content.strip()
+    print("=== RAW DETECTION OUTPUT ===")
     print(raw_output)
 
+    # Parse JSON safely
     try:
         data = json.loads(raw_output)
         return data.get("cards", [])
