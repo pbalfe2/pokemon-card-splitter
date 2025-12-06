@@ -1,55 +1,75 @@
 # card_ai.py
 import base64
-import json
-from shared_openai_client import get_openai_client
-from price_lookup import lookup_prices
+from openai import OpenAI
+import os
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def encode_image(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
+
 
 def identify_and_grade_card(card_path):
-    client = get_openai_client()
+    img_b64 = encode_image(card_path)
 
-    with open(card_path, "rb") as f:
-        img_bytes = f.read()
-    img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+    prompt = """
+You are an expert in Pokémon card identification, rarity classification, and condition evaluation.
+
+### REQUIRED OUTPUT FORMAT (JSON ONLY)
+{
+  "name": "...",
+  "set": "...",
+  "number": "...",
+  "rarity": "...",
+  "condition": "...",
+  "price_ai_estimate": "..."
+}
+
+### RULES:
+- Condition must be one of:
+  "Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"
+- DO NOT use PSA grades or numbers.
+- If unsure, assume “Near Mint” unless visible damage suggests otherwise.
+- Estimate a realistic market price (CAD) based on recent sales.
+- Keep JSON valid and do not include commentary.
+"""
 
     response = client.chat.completions.create(
-        model="gpt-5.1",
+        model="gpt-5.1",  # confirmed working model on your system
         messages=[
+            {"role": "system", "content": "You are a Pokémon TCG card expert."},
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "text",
-                        "text": (
-                            "Identify this Pokémon card and output ONLY this JSON:\n"
-                            "{\n"
-                            "  'name': string,\n"
-                            "  'set': string,\n"
-                            "  'number': string,\n"
-                            "  'rarity': string,\n"
-                            "  'estimated_grade': string\n"
-                            "}"
-                        )
-                    },
+                    {"type": "text", "text": prompt},
                     {
                         "type": "image_url",
-                        "image_url": { "url": f"data:image/png;base64,{img_b64}" }
+                        "image_url": {
+                            "url": f"data:image/png;base64,{img_b64}"
+                        }
                     }
-                ]
-            }
+                ],
+            },
         ],
         temperature=0
     )
 
-    raw_text = response.choices[0].message.content
-    print("=== CARD AI ANALYSIS:", card_path)
-    print(raw_text)
+    try:
+        result = response.choices[0].message.content.strip()
+        print("=== CARD AI RAW OUTPUT ===")
+        print(result)
+        data = eval(result) if result.startswith("{") else {}
+    except Exception as e:
+        print("AI JSON parse error:", e)
+        data = {}
 
-    # Extract JSON
-    start = raw_text.find("{")
-    end = raw_text.rfind("}")
-    card_info = json.loads(raw_text[start:end+1])
-
-    # Attach prices
-    card_info["prices"] = lookup_prices(card_info["name"])
-
-    return card_info
+    # Fail-safe defaults so the app never breaks
+    return {
+        "name": data.get("name", "Unknown Card"),
+        "set": data.get("set", "Unknown Set"),
+        "number": data.get("number", "?"),
+        "rarity": data.get("rarity", "Unknown"),
+        "condition": data.get("condition", "Near Mint"),
+        "price_ai_estimate": data.get("price_ai_estimate", "0")
+    }
