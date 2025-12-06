@@ -1,0 +1,4 @@
+build:
+  steps:
+    - pip install --upgrade pip
+    - pip install --upgrade openai==1.61.1
