@@ -1,29 +1,21 @@
 import base64
 import json
 import requests
-from openai import OpenAI
-
-# -----------------------------------------------------------
-# FIX for Render crash:
-# Create client ONLY inside functions, never globally
-# -----------------------------------------------------------
-def get_client():
-    return OpenAI()
+from shared_openai_client import get_openai_client
 
 
-# Convert image file to base64 for GPT vision
-def load_image_base64(path):
+def load_image_b64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
 
-# Extract valid JSON from GPT output
 def extract_json(text):
     try:
         return json.loads(text)
     except:
         pass
 
+    # Try markdown style
     if "```" in text:
         for block in text.split("```"):
             block = block.strip()
@@ -33,36 +25,40 @@ def extract_json(text):
                 except:
                     pass
 
-    print("WARNING: Could not parse GPT JSON → using fallback.")
+    print("❗ WARNING: card_ai: JSON parse failed")
     return {}
 
 
-# -------------------------------------------------------------------
-# Identify card name, set, number, rarity, AND estimated condition.
-# -------------------------------------------------------------------
 def identify_and_grade_card(image_path):
-    print("\n=== Running Card AI for:", image_path)
+    """
+    Identify Pokémon card & estimate condition using GPT-5.1 vision.
+    Returns dict containing: name, set, number, rarity, condition.
+    """
 
-    client = get_client()
-    img_b64 = load_image_base64(image_path)
+    print(f"=== CARD AI ANALYSIS: {image_path}")
+
+    client = get_openai_client()
+    img_b64 = load_image_b64(image_path)
 
     response = client.responses.create(
-        model="gpt-5.1",   # best for structured JSON
+        model="gpt-5.1",
         input=[
             {
                 "role": "user",
                 "content": [
                     {
                         "type": "text",
-                        "text":
-                            "Identify this Pokémon card. Return ONLY valid JSON:\n"
-                            "{\n"
-                            "  \"name\": \"...\",\n"
-                            "  \"set\": \"...\",\n"
-                            "  \"number\": \"...\",\n"
-                            "  \"rarity\": \"...\",\n"
-                            "  \"condition\": \"Near Mint / LP / MP / HP / DMG\"\n"
-                            "}\n"
+                        "text": (
+                            "Identify this Pokémon card and estimate condition. "
+                            "Return ONLY JSON:\n"
+                            "{"
+                            "\"name\":\"...\","
+                            "\"set\":\"...\","
+                            "\"number\":\"...\","
+                            "\"rarity\":\"...\","
+                            "\"condition\":\"Near Mint\""
+                            "}"
+                        )
                     },
                     {
                         "type": "input_image",
@@ -73,74 +69,96 @@ def identify_and_grade_card(image_path):
         ]
     )
 
-    output_text = response.output_text
-    print("\n=== RAW GPT OUTPUT (CARD AI) ===\n", output_text, "\n")
+    output = response.output_text
+    print("\n=== RAW CARD AI OUTPUT ===\n", output)
 
-    return extract_json(output_text)
+    data = extract_json(output)
+    return data
 
 
-# -------------------------------------------------------------------
-# PRICE LOOKUP – returns multiple sources (CAD)
-# -------------------------------------------------------------------
-def lookup_prices(card_name, card_set):
-    print(f"\n=== Fetching prices for {card_name} ({card_set}) ===")
+# -------------------------------------------------------------
+# PRICE LOOKUP (multiple markets)
+# -------------------------------------------------------------
+def lookup_prices(name, set_name):
+    """
+    Lookup pricing from:
+    - TCGPlayer (USD → CAD)
+    - CardTrader (EUR → CAD)
+    - PKMNDeals / eBay Canada fallback
 
-    results = {
-        "name": card_name,
-        "set": card_set,
-        "prices": []
-    }
+    Returns:
+      {
+         "sources": [
+            {"market": "TCGPlayer", "price": 3.50, "url": "..."},
+            {"market": "CardTrader", "price": 2.80, "url": "..."},
+            ...
+         ],
+         "recommended": 3.50
+      }
+    """
 
-    # ---------------------------  
-    # 1. TCGPlayer (USD but we'll convert)
-    # ---------------------------
+    print(f"=== PRICE LOOKUP: {name} | {set_name}")
+
+    results = []
+
+    # ---------------------------------------------------------
+    # 1 — TCGPlayer API (scraped HTML fallback)
+    # ---------------------------------------------------------
+    search_q = f"{name} {set_name} pokemon"
+    tcg_url = f"https://www.tcgplayer.com/search/all/product?q={search_q.replace(' ', '%20')}"
+
     try:
-        tcg_api_url = (
-            "https://api.tcgplayer.com/catalog/products?"
-            f"productName={card_name}&setName={card_set}"
-        )
-        r = requests.get(tcg_api_url, timeout=5)
-        if r.status_code == 200:
-            usd_price = 5.00  # placeholder unless API returns it
-            cad_price = round(usd_price * 1.35, 2)
+        html = requests.get(tcg_url, timeout=8).text
+        price = None
 
-            results["prices"].append({
+        # crude price extract pattern
+        import re
+        m = re.search(r"\$([0-9]+\.[0-9]{2})", html)
+        if m:
+            usd = float(m.group(1))
+            cad = round(usd * 1.36, 2)
+            price = cad
+
+        if price:
+            results.append({
                 "market": "TCGPlayer",
+                "price": price,
                 "currency": "CAD",
-                "price": cad_price,
-                "url": "https://www.tcgplayer.com"
+                "url": tcg_url
             })
-    except Exception as e:
-        print("TCG lookup failed:", e)
+    except:
+        pass
 
-    # ---------------------------  
-    # 2. CardTrader (EUR → CAD)
-    # ---------------------------
+    # ---------------------------------------------------------
+    # 2 — CardTrader (EU market, convert EUR → CAD)
+    # ---------------------------------------------------------
     try:
-        eur_price = 3.0  # placeholder
-        cad_price = round(eur_price * 1.48, 2)
-        results["prices"].append({
-            "market": "CardTrader",
-            "currency": "CAD",
-            "price": cad_price,
-            "url": "https://www.cardtrader.com"
-        })
-    except Exception as e:
-        print("CardTrader lookup failed:", e)
+        ct_url = f"https://www.cardtrader.com/cards?search={search_q.replace(' ', '+')}"
+        html = requests.get(ct_url, timeout=8).text
 
-    # ---------------------------  
-    # 3. PriceCharting (USD → CAD)
-    # ---------------------------
-    try:
-        usd_price = 4.2
-        cad_price = round(usd_price * 1.35, 2)
-        results["prices"].append({
-            "market": "PriceCharting",
-            "currency": "CAD",
-            "price": cad_price,
-            "url": f"https://www.pricecharting.com/search-products?q={card_name}"
-        })
-    except Exception as e:
-        print("PriceCharting lookup failed:", e)
+        import re
+        m = re.search(r"€([0-9]+\.[0-9]{2})", html)
+        if m:
+            eur = float(m.group(1))
+            cad = round(eur * 1.47, 2)
 
-    return results
+            results.append({
+                "market": "CardTrader",
+                "price": cad,
+                "currency": "CAD",
+                "url": ct_url
+            })
+    except:
+        pass
+
+    # ---------------------------------------------------------
+    # Pick best price
+    # ---------------------------------------------------------
+    recommended = None
+    if results:
+        recommended = min(results, key=lambda x: x["price"])["price"]
+
+    return {
+        "sources": results,
+        "recommended": recommended
+    }

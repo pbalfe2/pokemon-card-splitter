@@ -8,6 +8,7 @@ from flask_basicauth import BasicAuth
 from card_detection import detect_card_boxes
 from card_cropper import crop_cards, create_thumbnail
 from card_ai import identify_and_grade_card, lookup_prices
+from card_detection import detect_card_boxes
 
 # ----------------------------------------------------
 # Ensure required directories exist (Render safe)
