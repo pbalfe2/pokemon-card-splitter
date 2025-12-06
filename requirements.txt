@@ -10,7 +10,7 @@ Pillow==10.4.0          # Latest version compatible with Python 3.13
 requests==2.31.0
 
 # ---- GPT / AI ----
-openai==1.40.2          # Required for GPT-4o / GPT-5.1 Vision
+openai==1.51.0
 
 # ---- Safe JSON Repair ----
 json5==0.9.25
