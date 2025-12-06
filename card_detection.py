@@ -10,30 +10,33 @@ def detect_card_boxes(image_path):
         img_b64 = base64.b64encode(f.read()).decode()
 
     prompt = """
-    Detect all Pokémon cards in the image.
-    Return JSON ONLY:
+    Detect all Pokémon cards in this image.
+
+    Return ONLY JSON:
     {
-        "cards": [
-          {"index":1, "x":0, "y":0, "width":0, "height":0}
-        ]
+      "cards": [
+        {"index":1, "x":0, "y":0, "width":0, "height":0}
+      ]
     }
     """
 
-    response = client.responses.create(
+    response = client.chat.completions.create(
         model="gpt-4o",
-        input=[
+        messages=[
             {
                 "role": "user",
-                "type": "message",
-                "content": prompt
-            },
-            {
-                "role": "user",
-                "type": "input_image",
-                "image_url": f"data:image/png;base64,{img_b64}"
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": f"data:image/png;base64,{img_b64}"
+                    }
+                ]
             }
         ]
     )
 
-    data = json.loads(response.output_text)
+    output_text = response.choices[0].message.content
+    data = json.loads(output_text)
+
     return data["cards"]

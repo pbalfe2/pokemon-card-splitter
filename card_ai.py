@@ -10,8 +10,8 @@ def identify_and_grade_card(image_path):
         img_b64 = base64.b64encode(f.read()).decode()
 
     prompt = """
-    You are an expert in Pokémon card grading and identification.
-    Analyze the card and return ONLY JSON:
+    You are an expert Pokémon card grading system.
+    Identify this card and return ONLY JSON:
 
     {
         "name": "",
@@ -23,20 +23,21 @@ def identify_and_grade_card(image_path):
     }
     """
 
-    response = client.responses.create(
+    response = client.chat.completions.create(
         model="gpt-4o",
-        input=[
+        messages=[
             {
                 "role": "user",
-                "type": "message",
-                "content": prompt
-            },
-            {
-                "role": "user",
-                "type": "input_image",
-                "image_url": f"data:image/png;base64,{img_b64}"
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": f"data:image/png;base64,{img_b64}"
+                    }
+                ]
             }
         ]
     )
 
-    return json.loads(response.output_text)
+    output_text = response.choices[0].message.content
+    return json.loads(output_text)
