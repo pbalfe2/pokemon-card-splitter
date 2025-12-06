@@ -40,8 +40,20 @@ def upload():
     path = os.path.join("uploads", fname)
     f.save(path)
 
-    boxes = detect_card_boxes(path)
+    # 1. Detect card bounding boxes
+    det = detect_card_boxes(path)
+
+    # Ensure we extract ONLY the list of card boxes
+    boxes = det.get("cards", [])
+
+    print("=== RAW DETECTION OUTPUT ===")
+    print(det)
+
+    # 2. Crop cards (now passing a proper list instead of a dict)
     cropped = crop_cards(path, boxes)
+
+
+
 
     cards = []
     for idx, cpath in enumerate(cropped, start=1):
