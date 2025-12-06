@@ -3,52 +3,54 @@ import base64
 import json
 from shared_openai_client import get_openai_client
 
-
 def detect_card_boxes(image_path):
-    print(f"=== CARD DETECTION START: {image_path}")
-
     client = get_openai_client()
 
-    # read image as base64
+    # Load & encode image
     with open(image_path, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode("utf-8")
+        img_bytes = f.read()
+    img_b64 = base64.b64encode(img_bytes).decode("utf-8")
 
-    prompt = """
-You are a JSON-only vision detector. 
-Input is an image containing 1 or more Pokémon cards.
+    print("=== CARD DETECTION START:", image_path)
 
-RETURN ONLY VALID JSON:
-{
-  "cards": [
-    {"index": 1, "x": int, "y": int, "width": int, "height": int},
-    ...
-  ]
-}
-"""
-
-    response = client.responses.create(
-        model="gpt-4.1",
-        input=[
+    # GPT-5-preview multimodal call
+    response = client.chat.completions.create(
+        model="gpt-5-preview",
+        messages=[
             {
                 "role": "user",
                 "content": [
-                    {"type": "input_text", "text": prompt},
-                    {"type": "input_image", "image_base64": b64}
-                ]
+                    {"type": "text", 
+                     "text": (
+                         "You are a card detector. Analyze the image and output ONLY a JSON object "
+                         "with an array called 'cards'. Each card must have: index, x, y, width, height. "
+                         "Coordinates must be integers. No explanations."
+                     )
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{img_b64}"
+                        }
+                    }
+                ],
             }
-        ]
+        ],
+        temperature=0
     )
 
-    # Extract text output
-    output = response.output_text
+    raw_text = response.choices[0].message.content
 
     print("=== RAW DETECTION OUTPUT ===")
-    print(output)
+    print(raw_text)
 
-    # Parse JSON
+    # Force JSON parsing safely
     try:
-        data = json.loads(output)
-        return data.get("cards", [])
-    except:
-        print("JSON parse error — returning empty list")
-        return []
+        return json.loads(raw_text)
+    except Exception:
+        # Try to extract JSON if surrounded by text
+        start = raw_text.find("{")
+        end = raw_text.rfind("}")
+        if start != -1 and end != -1:
+            return json.loads(raw_text[start:end+1])
+        raise ValueError("GPT did not return valid JSON.")

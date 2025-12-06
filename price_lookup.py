@@ -1,46 +1,30 @@
 # price_lookup.py
 import requests
+from urllib.parse import quote_plus
 
-USD_TO_CAD = 1.36
-EUR_TO_CAD = 1.48
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (compatible; PokémonCardApp/1.0)"
+}
 
+def lookup_prices(card_name):
+    safe = quote_plus(card_name)
 
-def lookup_prices(name, set_name):
-    safe = f"{name} {set_name}".replace(" ", "%20")
-
-    results = []
-
-    # ------------------------------
-    # 1) TCGPlayer (unofficial quick search)
-    # ------------------------------
+    cm_url = f"https://www.cardmarket.com/en/Pokemon/Products/Search?searchString={safe}"
     tcg_url = f"https://www.tcgplayer.com/search/pokemon/product?productName={safe}"
-    results.append({
-        "source": "TCGPlayer",
-        "url": tcg_url,
-        "currency": "CAD",
-        "price": round(15 * USD_TO_CAD, 2)  # mock price
-    })
 
-    # ------------------------------
-    # 2) CardMarket
-    # ------------------------------
-    mk_url = f"https://www.cardmarket.com/en/Pokemon/Products/Search?searchString={safe}"
-    results.append({
-        "source": "CardMarket",
-        "url": mk_url,
-        "currency": "CAD",
-        "price": round(10 * EUR_TO_CAD, 2)
-    })
+    results = {
+        "cardmarket": cm_url,
+        "tcgplayer": tcg_url
+    }
 
-    # ------------------------------
-    # 3) PriceCharting
-    # ------------------------------
-    pc_url = f"https://www.pricecharting.com/search-products?type=prices&q={safe}"
-    results.append({
-        "source": "PriceCharting",
-        "url": pc_url,
-        "currency": "CAD",
-        "price": round(12 * USD_TO_CAD, 2)
-    })
+    # Try to fetch CardMarket price (optional)
+    try:
+        r = requests.get(cm_url, headers=HEADERS, timeout=5)
+        if "EUR" in r.text:
+            results["cardmarket_price_guess"] = "See page — prices detected"
+        else:
+            results["cardmarket_price_guess"] = "No price detected"
+    except:
+        results["cardmarket_price_guess"] = "Unavailable"
 
     return results

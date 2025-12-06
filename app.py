@@ -45,7 +45,7 @@ def upload():
 
     cards = []
     for idx, cpath in enumerate(cropped, start=1):
-        analysis = identify_and_grade_card(cpath)
+        analysis = identify_and_grade_card(card_path)
         thumb = f"static/thumbs/{idx}.jpg"
         create_thumbnail(cpath, thumb)
 
