@@ -6,16 +6,13 @@ from openai import OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def clean_json_output(text):
-    """Remove Markdown ```json fences and extract pure JSON."""
-    if text is None:
+    if not text:
         return ""
-
-    # Remove code fences
-    text = text.replace("```json", "")
-    text = text.replace("```", "")
-
-    # Strip whitespace
-    return text.strip()
+    return (
+        text.replace("```json", "")
+            .replace("```", "")
+            .strip()
+    )
 
 def try_parse_json(text):
     try:
@@ -25,71 +22,75 @@ def try_parse_json(text):
 
 def repair_json_with_gpt(bad_text):
     prompt = f"""
-    The following text was meant to be valid JSON but is not:
+    The following output should be JSON but isn't:
 
     {bad_text}
 
-    Return ONLY valid JSON. No explanations.
+    Fix it and return ONLY valid JSON with the structure:
+    {{
+      "cards": [
+        {{"index":1, "x":0, "y":0, "width":0, "height":0}}
+      ]
+    }}
     """
-
     resp = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-5.1-mini",
         messages=[{"role": "user", "content": prompt}]
     )
-
-    cleaned = clean_json_output(resp.choices[0].message.content)
-    return cleaned
+    return clean_json_output(resp.choices[0].message.content)
 
 def detect_card_boxes(image_path):
+    """Use GPT-5.1 Vision to detect card bounding boxes."""
+    
     with open(image_path, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()
 
     prompt = """
-    Detect all Pokémon cards in the image.
-    Return ONLY valid JSON in this exact structure:
+    Detect all Pokémon trading cards in the image.
+    Return ONLY valid JSON with this structure:
 
     {
       "cards": [
         {"index":1, "x":0, "y":0, "width":0, "height":0}
       ]
     }
+
+    Coordinates must reference exact pixel locations.
     """
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-5.1",
         messages=[
             {
                 "role": "user",
                 "content": [
                     {"type": "text", "text": prompt},
-                    {"type": "image_url",
-                     "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{img_b64}"
+                        }
+                    }
                 ]
             }
         ]
     )
 
-    output_text = response.choices[0].message.content
-    print("==== RAW GPT OUTPUT (DETECTION) ====")
-    print(output_text)
+    raw = response.choices[0].message.content
+    print("==== RAW GPT-5.1 DETECTION OUTPUT ====")
+    print(raw)
 
-    # Clean markdown fences
-    cleaned = clean_json_output(output_text)
-
-    # Try parsing cleaned JSON
+    cleaned = clean_json_output(raw)
     data = try_parse_json(cleaned)
-    if data is not None:
+    if data:
         return data.get("cards", [])
 
-    print("WARNING: JSON failed to parse. Attempting repair...")
+    print("WARNING: Detection JSON invalid. Attempting repair...")
 
-    repaired = repair_json_with_gpt(output_text)
-    print("==== REPAIRED JSON ATTEMPT ====")
-    print(repaired)
+    repaired = repair_json_with_gpt(raw)
+    repaired_data = try_parse_json(repaired)
+    if repaired_data:
+        return repaired_data.get("cards", [])
 
-    repaired_json = try_parse_json(repaired)
-    if repaired_json is not None:
-        return repaired_json.get("cards", [])
-
-    print("ERROR: JSON could not be repaired. Returning empty list.")
+    print("ERROR: Unable to repair JSON. Returning empty list.")
     return []

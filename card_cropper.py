@@ -19,7 +19,14 @@ def crop_cards(image_path, boxes):
     return cropped_paths
 
 
-def create_thumbnail(input_path, output_path):
+def create_thumbnail(input_path, output_path, size=(200, 200)):
+    from PIL import Image
+
     img = Image.open(input_path)
-    img.thumbnail((200, 200))
-    img.save(output_path)
+
+    # Convert RGBA → RGB so JPEG can be written
+    if img.mode == "RGBA":
+        img = img.convert("RGB")
+
+    img.thumbnail(size)
+    img.save(output_path, "JPEG")
