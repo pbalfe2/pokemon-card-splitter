@@ -70,12 +70,18 @@ def upload():
         thumb_path = f"static/thumbs/card_{index}.jpg"
         create_thumbnail(card_path, thumb_path)
 
-        results.append({
-            "id": index,
-            "image": card_path,
-            "image_thumb": thumb_path,
-            "analysis": analysis
-        })
+results.append({
+    "id": index,
+    "image": card_path,
+    "image_thumb": thumb_path,
+    "name": analysis.get("name", ""),
+    "set": analysis.get("set", ""),
+    "number": analysis.get("number", ""),
+    "rarity": analysis.get("rarity", ""),
+    "condition": analysis.get("condition", ""),
+    "price": analysis.get("price", "")
+})
+
 
     # 5. Save session data
     session_id = str(uuid.uuid4())
