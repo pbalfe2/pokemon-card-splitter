@@ -9,6 +9,20 @@ from card_detection import detect_card_boxes
 from card_cropper import crop_cards, create_thumbnail
 from card_ai import identify_and_grade_card
 
+# --------------------------------------
+# Ensure directories exist on Render
+# --------------------------------------
+REQUIRED_FOLDERS = [
+    "uploads",
+    "cropped",
+    "session_data",
+    "static",
+    "static/thumbs"
+]
+
+for folder in REQUIRED_FOLDERS:
+    os.makedirs(folder, exist_ok=True)
+
 app = Flask(__name__)
 app.config.from_object("config")
 
