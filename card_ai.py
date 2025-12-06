@@ -22,16 +22,12 @@ def try_parse_json(text):
 
 def repair_json_with_gpt(bad_text):
     prompt = f"""
-    The following output should be JSON but isn't:
+    The following response was supposed to be JSON but isn't:
 
     {bad_text}
 
-    Fix it and return ONLY valid JSON with the structure:
-    {{
-      "cards": [
-        {{"index":1, "x":0, "y":0, "width":0, "height":0}}
-      ]
-    }}
+    Repair it and return ONLY valid JSON with keys:
+    name, set, number, rarity, condition, price
     """
     resp = client.chat.completions.create(
         model="gpt-5.1-mini",
@@ -39,26 +35,30 @@ def repair_json_with_gpt(bad_text):
     )
     return clean_json_output(resp.choices[0].message.content)
 
-def detect_card_boxes(image_path):
-    """Use GPT-5.1 Vision to detect card bounding boxes."""
-    
+def identify_and_grade_card(image_path):
+    """Identify + grade Pokémon card using GPT-5.1 multimodal."""
+
+    # Convert image to base64
     with open(image_path, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()
 
     prompt = """
-    Detect all Pokémon trading cards in the image.
-    Return ONLY valid JSON with this structure:
+    Analyze this Pokémon card and return information in JSON only:
 
     {
-      "cards": [
-        {"index":1, "x":0, "y":0, "width":0, "height":0}
-      ]
+      "name": "",
+      "set": "",
+      "number": "",
+      "rarity": "",
+      "condition": "",
+      "price": 0
     }
 
-    Coordinates must reference exact pixel locations.
+    - "condition" must be NM, LP, MP, HP, or DMG
+    - "price" must be a realistic Canadian market estimate
     """
 
-    response = client.chat.completions.create(
+    resp = client.chat.completions.create(
         model="gpt-5.1",
         messages=[
             {
@@ -76,21 +76,31 @@ def detect_card_boxes(image_path):
         ]
     )
 
-    raw = response.choices[0].message.content
-    print("==== RAW GPT-5.1 DETECTION OUTPUT ====")
+    raw = resp.choices[0].message.content
+    print("==== RAW GPT-5.1 CARD AI OUTPUT ====")
     print(raw)
 
     cleaned = clean_json_output(raw)
     data = try_parse_json(cleaned)
-    if data:
-        return data.get("cards", [])
 
-    print("WARNING: Detection JSON invalid. Attempting repair...")
+    if data:
+        return data
+
+    print("WARNING: Card AI JSON invalid. Attempting repair…")
 
     repaired = repair_json_with_gpt(raw)
-    repaired_data = try_parse_json(repaired)
-    if repaired_data:
-        return repaired_data.get("cards", [])
+    repaired_json = try_parse_json(repaired)
 
-    print("ERROR: Unable to repair JSON. Returning empty list.")
-    return []
+    if repaired_json:
+        return repaired_json
+
+    print("ERROR: Returning fallback defaults.")
+
+    return {
+        "name": "Unknown Card",
+        "set": "",
+        "number": "",
+        "rarity": "",
+        "condition": "Unknown",
+        "price": 0
+    }
