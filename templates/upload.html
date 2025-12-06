@@ -1,13 +1,15 @@
 {% extends "layout.html" %}
+
 {% block content %}
-
 <h2>Upload Card Sheet</h2>
+<p>Select an image containing multiple cards. Supported formats: PNG, JPG, WEBP.</p>
 
-<form action="/upload" method="POST" enctype="multipart/form-data">
-    <label>Select image:</label>
-    <input type="file" name="image" required>
-    <br><br>
-    <button type="submit" class="btn">Upload</button>
+<form method="POST" enctype="multipart/form-data">
+
+    <label>Select Image</label>
+    <input class="input" type="file" name="image" accept="image/*" required>
+
+    <button class="btn" type="submit">Upload & Process</button>
 </form>
 
 {% endblock %}

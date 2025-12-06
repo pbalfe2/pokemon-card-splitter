@@ -1,5 +1,17 @@
 {% extends "layout.html" %}
+
 {% block content %}
-<h2>Pokémon Card Processing Dashboard</h2>
-<a href="/upload" class="btn btn-primary mt-3">Upload Cards</a>
+<h2>Welcome to the Card Scanner</h2>
+
+<p>This tool allows you to:</p>
+<ul>
+    <li>Upload a sheet containing several Pokémon / TCG cards</li>
+    <li>Automatically detect and crop each card</li>
+    <li>Identify card name, set, number, rarity</li>
+    <li>Estimate condition (Near Mint, Lightly Played, etc.)</li>
+    <li>Fetch live pricing from TCGplayer & Cardmarket</li>
+    <li>Review cards before sending them to Shopify or Make</li>
+</ul>
+
+<a class="btn" href="/upload">Start a New Scan</a>
 {% endblock %}

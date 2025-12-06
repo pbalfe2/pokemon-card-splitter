@@ -2,42 +2,70 @@
 
 {% block content %}
 <h2>Review Your Cards</h2>
+<p>Review the detected information and approve the cards you want to send.</p>
 
 <form method="POST" action="/approve/{{ session_id }}">
 
-    {% for card in cards %}
-    <div class="card-block">
-        <img src="/{{ card.image_thumb }}" class="thumb">
+{% for card in cards %}
+<div class="card-block">
 
-        <div class="fields">
-            <label>Name:</label>
-            <input class="input" name="name_{{ card.id }}" value="{{ card.name }}">
+    <img src="/{{ card.image_thumb }}" class="thumb">
 
-            <label>Set:</label>
-            <input class="input" name="set_{{ card.id }}" value="{{ card.set }}">
+    <div class="fields">
 
-            <label>Number:</label>
-            <input class="input" name="number_{{ card.id }}" value="{{ card.number }}">
+        <label>Name</label>
+        <input class="input" name="name_{{ card.id }}" value="{{ card.name }}">
 
-            <label>Rarity:</label>
-            <input class="input" name="rarity_{{ card.id }}" value="{{ card.rarity }}">
+        <label>Set</label>
+        <input class="input" name="set_{{ card.id }}" value="{{ card.set }}">
 
-            <label>Condition:</label>
-            <input class="input" name="condition_{{ card.id }}" value="{{ card.condition }}">
+        <label>Number</label>
+        <input class="input" name="number_{{ card.id }}" value="{{ card.number }}">
 
-            <label>AI Price Estimate:</label>
-            <input class="input" name="price_{{ card.id }}" value="{{ card.price_ai_estimate }}">
+        <label>Rarity</label>
+        <input class="input" name="rarity_{{ card.id }}" value="{{ card.rarity }}">
+
+        <label>Condition</label>
+        <input class="input" name="condition_{{ card.id }}" value="{{ card.condition }}">
+
+        <div class="price-box">
+            <strong>AI Price Estimate:</strong> {{ card.price_ai_estimate }} CAD<br><br>
+
+            <strong>TCGplayer:</strong><br>
+            {% if card.tcg %}
+                Low: {{ card.tcg.low }} | Market: {{ card.tcg.market }} | High: {{ card.tcg.high }}
+            {% else %}
+                Not found
+            {% endif %}
+            <br><br>
+
+            <strong>Cardmarket:</strong><br>
+            {% if card.mk %}
+                Low: {{ card.mk.low }} | Trend: {{ card.mk.trend }}
+            {% else %}
+                Not found
+            {% endif %}
         </div>
 
-        <label>
+        <label>Final Price</label>
+        <input class="input" name="price_{{ card.id }}" value="{{ card.auto_price }}">
+
+        <label class="checkbox-row">
+            <input type="checkbox" name="use_live_{{ card.id }}">
+            Use live TCGplayer / Cardmarket prices
+        </label>
+
+        <label class="checkbox-row">
             <input type="checkbox" name="approve_{{ card.id }}">
             Approve this card
         </label>
-    </div>
-    <hr>
-    {% endfor %}
 
-    <button type="submit" class="btn">Send to Webhook</button>
+    </div>
+</div>
+{% endfor %}
+
+<br>
+<button class="btn" type="submit">Send to Webhook</button>
 
 </form>
 {% endblock %}

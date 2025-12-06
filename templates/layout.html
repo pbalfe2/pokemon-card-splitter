@@ -1,21 +1,133 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Pokémon Card Tool</title>
+    <meta charset="UTF-8">
+    <title>Card Scanner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        :root {
+            --primary: #4c6ef5;
+            --primary-dark: #3b5bdb;
+            --bg: #f5f7fb;
+            --text: #222;
+            --text-light: #555;
+            --border: #e2e6f0;
+        }
 
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+        body {
+            margin: 0;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
 
+        .navbar {
+            background: white;
+            padding: 15px 25px;
+            border-bottom: 1px solid var(--border);
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 14px rgba(0,0,0,0.05);
+        }
+
+        h1, h2 {
+            margin-top: 0;
+            font-weight: 600;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            padding: 12px 22px;
+            border-radius: 8px;
+            text-decoration: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            display: inline-block;
+            margin-top: 15px;
+            transition: 0.15s;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 15px;
+        }
+
+        .card-block {
+            display: flex;
+            gap: 20px;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .thumb {
+            width: 130px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 5px;
+            display: block;
+            color: var(--text-light);
+        }
+
+        .price-box {
+            background: #f9faff;
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid #dde2ef;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+
+        .checkbox-row {
+            margin-top: 10px;
+            font-size: 15px;
+        }
+
+        @media (max-width: 700px) {
+            .card-block {
+                flex-direction: column;
+            }
+
+            .thumb {
+                width: 180px;
+                margin: 0 auto;
+            }
+        }
+    </style>
 </head>
+
 <body>
+    <div class="navbar">Card Scanner</div>
 
-<div class="container">
-    <h1 class="title">Pokémon Card Automation Tool</h1>
-    <hr>
-
-    {% block content %}{% endblock %}
-</div>
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
 
 </body>
 </html>
