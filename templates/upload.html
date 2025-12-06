@@ -1,15 +1,10 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Upload Pokémon Card Image</title>
-</head>
-<body>
-    <h2>Upload a photo containing 1–10 cards</h2>
+{% extends "layout.html" %}
+{% block content %}
+<h2>Upload Pokémon Cards</h2>
 
-    <form action="/upload" method="POST" enctype="multipart/form-data">
-        <input type="file" name="image" accept="image/*" required>
-        <br><br>
-        <button type="submit">Upload</button>
-    </form>
-</body>
-</html>
+<form method="POST" enctype="multipart/form-data" class="mt-3">
+    <input type="file" name="image" required class="form-control">
+    <button class="btn btn-success mt-3">Process Cards</button>
+</form>
+
+{% endblock %}

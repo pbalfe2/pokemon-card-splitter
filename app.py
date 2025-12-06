@@ -1,51 +1,123 @@
-from flask import Flask, render_template, request, jsonify
-from card_processing import extract_cards
 import os
+import json
+import uuid
+import requests
+from flask import Flask, request, jsonify, render_template, redirect
+from flask_basicauth import BasicAuth
+
+from card_detection import detect_card_boxes
+from card_cropper import crop_cards, create_thumbnail
+from card_ai import identify_and_grade_card
 
 app = Flask(__name__)
+app.config.from_object("config")
 
-# --------- CONFIGURATION ----------
-UPLOAD_FOLDER = "uploads"
-PROCESSED_FOLDER = "processed"
+basic_auth = BasicAuth(app)
 
-# 🔵 Your Make Webhook URL:
-WEBHOOK_URL = "https://hook.us2.make.com/0t8oinao8c0yaumj3y81v8ncxgo8yp3n"
+WEBHOOK_URL = os.getenv("MAKE_WEBHOOK_URL")
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(PROCESSED_FOLDER, exist_ok=True)
-# ---------------------------------
 
+# -----------------------------------------
+# HOME PAGE (Protected)
+# -----------------------------------------
 @app.route("/")
+@basic_auth.required
 def home():
-    return "Card Splitter API Running!"
+    return render_template("home.html")
 
+
+# -----------------------------------------
+# UPLOAD PAGE (Protected)
+# -----------------------------------------
 @app.route("/upload", methods=["GET", "POST"])
-def upload_form():
+@basic_auth.required
+def upload():
     if request.method == "GET":
         return render_template("upload.html")
 
-    if "image" not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
+    # Save uploaded file
+    uploaded = request.files["image"]
+    filename = f"{uuid.uuid4()}.png"
+    filepath = os.path.join("uploads", filename)
+    uploaded.save(filepath)
 
-    file = request.files["image"]
+    # 1. Detect card bounding boxes
+    boxes = detect_card_boxes(filepath)
 
-    # Save uploaded image
-    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(filepath)
+    # 2. Crop cards
+    cropped_paths = crop_cards(filepath, boxes)
 
-    # Process image + send cropped cards to Make webhook
-    results = extract_cards(
-        image_path=filepath,
-        output_folder=PROCESSED_FOLDER,
-        webhook_url=WEBHOOK_URL
-    )
+    # 3. Identify + grade each card
+    results = []
+    for index, card_path in enumerate(cropped_paths, start=1):
+        analysis = identify_and_grade_card(card_path)
 
-    return jsonify({
-        "cards_detected": len(results),
-        "cropped_cards": results,
-        "sent_to_make": True
-    })
+        # 4. Create thumbnail
+        thumb_path = f"static/thumbs/card_{index}.jpg"
+        create_thumbnail(card_path, thumb_path)
+
+        results.append({
+            "id": index,
+            "image": card_path,
+            "image_thumb": thumb_path,
+            "analysis": analysis
+        })
+
+    # 5. Save session data
+    session_id = str(uuid.uuid4())
+    session_file = f"session_data/{session_id}.json"
+    with open(session_file, "w") as f:
+        json.dump(results, f, indent=2)
+
+    return redirect(f"/review/{session_id}")
 
 
+# -----------------------------------------
+# REVIEW PAGE (Protected)
+# -----------------------------------------
+@app.route("/review/<session_id>")
+@basic_auth.required
+def review(session_id):
+    session_file = f"session_data/{session_id}.json"
+    with open(session_file) as f:
+        cards = json.load(f)
+
+    return render_template("review.html", cards=cards, session_id=session_id)
+
+
+# -----------------------------------------
+# APPROVAL SUBMISSION (Protected)
+# -----------------------------------------
+@app.route("/approve/<session_id>", methods=["POST"])
+@basic_auth.required
+def approve(session_id):
+    session_file = f"session_data/{session_id}.json"
+    with open(session_file) as f:
+        cards = json.load(f)
+
+    approved = []
+
+    for card in cards:
+        i = card["id"]
+        if f"approve_{i}" in request.form:
+
+            card["name"] = request.form.get(f"name_{i}")
+            card["set"] = request.form.get(f"set_{i}")
+            card["number"] = request.form.get(f"number_{i}")
+            card["rarity"] = request.form.get(f"rarity_{i}")
+            card["condition"] = request.form.get(f"condition_{i}")
+            card["price"] = request.form.get(f"price_{i}")
+
+            approved.append(card)
+
+    # Send approved cards to Make
+    requests.post(WEBHOOK_URL, json={"approved_cards": approved})
+
+    return render_template("sent.html", count=len(approved))
+
+
+# -----------------------------------------
+# RUN APP
+# -----------------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

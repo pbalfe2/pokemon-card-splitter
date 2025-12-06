@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2 class="mb-4">Review and Approve Cards</h2>
+
+<form method="POST" action="/approve/{{ session_id }}">
+
+{% for card in cards %}
+<div class="card-box row">
+    <div class="col-md-3">
+        <img src="/{{ card.image_thumb }}" class="thumb img-fluid">
+    </div>
+
+    <div class="col-md-9">
+        <h5>Card {{ loop.index }}</h5>
+
+        <div class="mb-2">
+            <label>Name</label>
+            <input class="form-control" name="name_{{ loop.index }}" value="{{ card.name }}">
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-2">
+                <label>Set</label>
+                <input class="form-control" name="set_{{ loop.index }}" value="{{ card.set }}">
+            </div>
+
+            <div class="col-md-3 mb-2">
+                <label>Number</label>
+                <input class="form-control" name="number_{{ loop.index }}" value="{{ card.number }}">
+            </div>
+
+            <div class="col-md-3 mb-2">
+                <label>Rarity</label>
+                <input class="form-control" name="rarity_{{ loop.index }}" value="{{ card.rarity }}">
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                <label>Condition</label>
+                <input class="form-control" name="condition_{{ loop.index }}" value="{{ card.condition }}">
+            </div>
+
+            <div class="col-md-4 mb-2">
+                <label>Price</label>
+                <input class="form-control" id="price_{{ loop.index }}" name="price_{{ loop.index }}" value="{{ card.price }}">
+                <div id="price_status_{{ loop.index }}" class="price-loading">Loading price...</div>
+            </div>
+
+            <div class="col-md-4">
+                <label class="mt-4">
+                    <input type="checkbox" name="approve_{{ loop.index }}" checked> Approve
+                </label>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-secondary mt-2" onclick="updatePrice({{ loop.index }})">
+            Refresh Price
+        </button>
+    </div>
+</div>
+{% endfor %}
+
+<button class="btn btn-primary btn-lg mt-4">Send Approved Cards to Store</button>
+</form>
+
+<script>
+function updatePrice(i) {
+    const name = document.querySelector(`[name="name_${i}"]`).value;
+    const set = document.querySelector(`[name="set_${i}"]`).value;
+    const status = document.getElementById(`price_status_${i}`);
+
+    status.textContent = "Fetching price…";
+
+    axios.post('/price_lookup', { name, set }).then(res => {
+        document.getElementById(`price_${i}`).value = res.data.price;
+        status.textContent = "Updated price ✓";
+    }).catch(() => {
+        status.textContent = "Price lookup failed";
+    });
+}
+
+window.onload = () => {
+    {% for card in cards %}
+    updatePrice({{ loop.index }});
+    {% endfor %}
+};
+</script>
+
+{% endblock %}

@@ -1,6 +1,6 @@
-flask
-opencv-python-headless
-numpy
-imutils
+Flask
+Flask-BasicAuth
+Pillow
+openai
 requests
-gunicorn
+python-dotenv
