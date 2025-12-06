@@ -19,6 +19,7 @@ basic_auth = BasicAuth(app)
 
 WEBHOOK_URL = os.getenv("MAKE_WEBHOOK_URL")
 
+# Ensure folders exist
 for folder in ["uploads", "cropped", "static/thumbs", "session_data"]:
     os.makedirs(folder, exist_ok=True)
 
@@ -35,6 +36,7 @@ def upload():
     if request.method == "GET":
         return render_template("upload.html")
 
+    # Save uploaded file
     f = request.files["image"]
     fname = f"{uuid.uuid4()}.png"
     path = os.path.join("uploads", fname)
@@ -43,37 +45,40 @@ def upload():
     # 1. Detect card bounding boxes
     det = detect_card_boxes(path)
 
-    # Ensure we extract ONLY the list of card boxes
-    boxes = det.get("cards", [])
-
     print("=== RAW DETECTION OUTPUT ===")
     print(det)
 
-    # 2. Crop cards (now passing a proper list instead of a dict)
-    cropped = crop_cards(path, boxes)
+    # Extract card list cleanly
+    boxes = det.get("cards", [])
 
-
-
+    # 2. Crop cards
+    cropped_paths = crop_cards(path, boxes)
 
     cards = []
-    for idx, cpath in enumerate(cropped, start=1):
-        analysis = identify_and_grade_card(card_path)
-        thumb = f"static/thumbs/{idx}.jpg"
+    session_id = str(uuid.uuid4())
+
+    for idx, cpath in enumerate(cropped_paths, start=1):
+
+        # 3. AI identification + grading
+        analysis = identify_and_grade_card(cpath)
+
+        # 4. Generate thumbnail with unique session + index
+        thumb = f"static/thumbs/{session_id}_{idx}.jpg"
         create_thumbnail(cpath, thumb)
 
         cards.append({
             "id": idx,
             "image": cpath,
             "image_thumb": thumb,
-            "name": analysis["name"],
-            "set": analysis["set"],
-            "number": analysis["number"],
-            "rarity": analysis["rarity"],
-            "condition": analysis["condition"],
-            "price_ai_estimate": analysis["price_ai_estimate"]
+            "name": analysis.get("name"),
+            "set": analysis.get("set"),
+            "number": analysis.get("number"),
+            "rarity": analysis.get("rarity"),
+            "condition": analysis.get("condition"),
+            "price_ai_estimate": analysis.get("price_ai_estimate"),
         })
 
-    session_id = str(uuid.uuid4())
+    # Save session file
     with open(f"session_data/{session_id}.json", "w") as f:
         json.dump(cards, f, indent=2)
 
