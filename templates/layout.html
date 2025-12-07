@@ -2,136 +2,63 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Card Scanner</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Card Review</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
-        :root {
-            --primary: #4c6ef5;
-            --primary-dark: #3b5bdb;
-            --bg: #f5f7fb;
-            --text: #222;
-            --text-light: #555;
-            --border: #e2e6f0;
-        }
-
         body {
-            margin: 0;
-            font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg);
-            color: var(--text);
+            background: #f6f8fb;
         }
 
-        .navbar {
-            background: white;
-            padding: 15px 25px;
-            border-bottom: 1px solid var(--border);
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--primary);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-        }
-
-        .container {
-            max-width: 900px;
+        .main-container {
+            max-width: 1100px;
             margin: 40px auto;
+        }
+
+        .card-box {
             background: white;
+            border-radius: 14px;
+            padding: 25px;
+            box-shadow: 0px 4px 20px rgba(0,0,0,0.05);
+            margin-bottom: 35px;
+        }
+
+        .thumb-img {
             border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 2px 14px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            max-height: 240px;
         }
 
-        h1, h2 {
-            margin-top: 0;
-            font-weight: 600;
-        }
-
-        .btn {
-            background: var(--primary);
-            color: white;
-            padding: 12px 22px;
-            border-radius: 8px;
-            text-decoration: none;
-            border: none;
-            font-size: 16px;
-            cursor: pointer;
-            display: inline-block;
+        .price-panel {
+            background: #f3f6ff;
+            border-left: 4px solid #4a73ff;
+            padding: 15px;
+            border-radius: 10px;
             margin-top: 15px;
-            transition: 0.15s;
         }
 
-        .btn:hover {
-            background: var(--primary-dark);
-        }
-
-        .input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin-bottom: 12px;
-            font-size: 15px;
-        }
-
-        .card-block {
-            display: flex;
-            gap: 20px;
-            padding: 20px 0;
-            border-bottom: 1px solid var(--border);
-        }
-
-		.thumb {
-			width: 140px;
-			height: 200px;             /* fixed modern thumbnail height */
-			object-fit: cover;         /* prevents distortion */
-			border-radius: 10px;
-			border: 1px solid var(--border);
-			background: #fff;
-		}
-
-
-        label {
-            font-size: 14px;
+        .label-title {
             font-weight: 600;
-            margin-top: 5px;
-            display: block;
-            color: var(--text-light);
+            margin-bottom: 4px;
+            color: #333;
         }
 
-        .price-box {
-            background: #f9faff;
-            padding: 12px 15px;
-            border-radius: 8px;
-            border: 1px solid #dde2ef;
-            margin-top: 8px;
-            font-size: 14px;
-        }
-
-        .checkbox-row {
-            margin-top: 10px;
-            font-size: 15px;
-        }
-
-        @media (max-width: 700px) {
-            .card-block {
-                flex-direction: column;
-            }
-
-            .thumb {
-                width: 180px;
-                margin: 0 auto;
-            }
+        .divider {
+            border-bottom: 1px solid #dcdcdc;
+            margin: 18px 0;
         }
     </style>
 </head>
 
 <body>
-    <div class="navbar">Card Scanner</div>
-
-    <div class="container">
-        {% block content %}
-        {% endblock %}
+    <div class="main-container">
+        {% block content %}{% endblock %}
     </div>
 
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

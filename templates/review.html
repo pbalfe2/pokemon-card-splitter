@@ -1,98 +1,95 @@
 {% extends "layout.html" %}
-
 {% block content %}
 
-<div class="container my-4">
+<h2 class="fw-bold mb-2">Review Your Cards</h2>
+<p class="text-muted mb-4">Verify the extracted information before sending the cards.</p>
 
-    <h2 class="fw-bold mb-2">Review Your Cards</h2>
-    <p class="text-muted mb-4">Verify and approve the cards you want to send.</p>
+<form method="POST" action="/approve/{{ session_id }}">
 
-    <form method="POST" action="/approve/{{ session_id }}">
+    {% for card in cards %}
+    <div class="card-box">
 
-        {% for card in cards %}
-        <div class="card shadow-sm p-4 mb-4">
+        <div class="row">
+            <!-- Thumbnail -->
+            <div class="col-md-3 text-center">
+                <img src="/{{ card.image_thumb }}" class="thumb-img mb-3">
+            </div>
 
-            <div class="row">
-                
-                <!-- Thumbnail -->
-                <div class="col-md-3 text-center">
-                    <img src="/{{ card.image_thumb }}" class="img-fluid rounded shadow-sm" style="max-height: 250px;">
-                </div>
+            <!-- Card Details -->
+            <div class="col-md-9">
 
-                <!-- Editable Fields -->
-                <div class="col-md-9">
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="fw-bold">Name</label>
-                            <input class="form-control" name="name_{{ card.id }}" value="{{ card.name }}">
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="fw-bold">Set</label>
-                            <input class="form-control" name="set_{{ card.id }}" value="{{ card.set }}">
-                        </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="label-title">Name</label>
+                        <input type="text" class="form-control" name="name_{{ card.id }}" value="{{ card.name }}">
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label class="fw-bold">Number</label>
-                            <input class="form-control" name="number_{{ card.id }}" value="{{ card.number }}">
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="fw-bold">Rarity</label>
-                            <input class="form-control" name="rarity_{{ card.id }}" value="{{ card.rarity }}">
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="fw-bold">Condition</label>
-                            <input class="form-control" name="condition_{{ card.id }}" value="{{ card.condition }}">
-                        </div>
-                    </div>
-
-                    <!-- Price Block -->
-                    <div class="alert alert-light border p-3">
-
-                        <div><strong>AI Estimate:</strong> {{ card.price_ai_estimate }} CAD</div>
-
-                        <hr>
-
-                        <div class="mb-1"><strong>TCGplayer</strong></div>
-                        {% if card.tcg %}
-                            <div>Market (USD): {{ card.tcg.usd_market }}</div>
-                            {% if card.tcg_cad %}<div>Market (CAD): <b>{{ card.tcg_cad }}</b></div>{% endif %}
-                        {% else %}
-                            <div class="text-muted">Not found</div>
-                        {% endif %}
-
-                        <hr>
-
-                        <div class="mb-1"><strong>Cardmarket</strong></div>
-                        {% if card.mk %}
-                            <div>Trend (EUR): {{ card.mk.eur_trend }}</div>
-                            {% if card.mk_cad %}<div>Trend (CAD): <b>{{ card.mk_cad }}</b></div>{% endif %}
-                        {% else %}
-                            <div class="text-muted">Not found</div>
-                        {% endif %}
-                    </div>
-
-                    <label class="fw-bold">Final Price</label>
-                    <input class="form-control mb-3" name="price_{{ card.id }}" value="{{ card.auto_price }}">
-
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="approve_{{ card.id }}">
-                        <label class="form-check-label">Approve this card</label>
+                    <div class="col-md-6 mb-3">
+                        <label class="label-title">Set</label>
+                        <input type="text" class="form-control" name="set_{{ card.id }}" value="{{ card.set }}">
                     </div>
                 </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="label-title">Number</label>
+                        <input type="text" class="form-control" name="number_{{ card.id }}" value="{{ card.number }}">
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label class="label-title">Rarity</label>
+                        <input type="text" class="form-control" name="rarity_{{ card.id }}" value="{{ card.rarity }}">
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label class="label-title">Condition</label>
+                        <input type="text" class="form-control" name="condition_{{ card.id }}" value="{{ card.condition }}">
+                    </div>
+                </div>
+
+                <!-- Price Panel -->
+                <div class="price-panel">
+
+                    <div><strong>AI Estimate:</strong> {{ card.price_ai_estimate }} CAD</div>
+
+                    <div class="divider"></div>
+
+                    <div><strong>TCGplayer (USD)</strong></div>
+                    {% if card.tcg %}
+                        Market: {{ card.tcg.usd_market }}  
+                        {% if card.tcg_cad %} <br>→ <strong>{{ card.tcg_cad }} CAD</strong> {% endif %}
+                    {% else %}
+                        <div class="text-muted">Not found</div>
+                    {% endif %}
+
+                    <div class="divider"></div>
+
+                    <div><strong>Cardmarket (EUR)</strong></div>
+                    {% if card.mk %}
+                        Trend: {{ card.mk.eur_trend }}
+                        {% if card.mk_cad %} <br>→ <strong>{{ card.mk_cad }} CAD</strong> {% endif %}
+                    {% else %}
+                        <div class="text-muted">Not found</div>
+                    {% endif %}
+
+                </div>
+
+                <label class="label-title mt-3">Final Price (CAD)</label>
+                <input type="text" class="form-control mb-2" name="price_{{ card.id }}" value="{{ card.auto_price }}">
+
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="approve_{{ card.id }}">
+                    <label class="form-check-label">Approve this card</label>
+                </div>
+
             </div>
         </div>
 
-        {% endfor %}
+    </div>
+    {% endfor %}
 
-        <button type="submit" class="btn btn-primary btn-lg mt-3">Send Approved Cards</button>
+    <button class="btn btn-primary btn-lg mt-3">Send Approved Cards</button>
 
-    </form>
-</div>
+</form>
 
 {% endblock %}
