@@ -1,97 +1,70 @@
+# price_lookup.py
 import requests
 from bs4 import BeautifulSoup
-import urllib.parse
+import re
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "User-Agent": "Mozilla/5.0",
+    "Accept-Language": "en-US,en;q=0.9"
 }
 
+def clean(text):
+    if not text:
+        return None
+    return text.replace("\n", "").replace("\t", "").strip()
 
-# -------------------------------
-# TCGPLAYER SCRAPER
-# -------------------------------
-def scrape_tcgplayer(name, set_name):
+def lookup_tcgplayer(name, set_name):
+    """Scrape minimal live prices from TCGplayer search."""
+    query = f"{name} {set_name}".replace(" ", "+")
+    url = f"https://www.tcgplayer.com/search/pokemon/product?q={query}"
+
     try:
-        query = urllib.parse.quote(f"{name} {set_name}")
-        url = f"https://www.tcgplayer.com/search/pokemon/product?q={query}"
-
         r = requests.get(url, headers=HEADERS, timeout=10)
-        if r.status_code != 200:
-            return None
-
         soup = BeautifulSoup(r.text, "html.parser")
 
-        # Find price fields on search result tiles
-        market = soup.select_one(".price-point__market .price-point__value")
-        low = soup.select_one(".price-point__low .price-point__value")
-        high = soup.select_one(".price-point__high .price-point__value")
+        price_block = soup.find("div", class_="inventory__price")
+        if not price_block:
+            return None
 
-        def clean(x):
-            if not x:
-                return None
-            return float(x.text.replace("$", "").replace(",", "").strip())
+        low = price_block.find("span", {"data-price-type": "low"})
+        market = price_block.find("span", {"data-price-type": "market"})
 
         return {
-            "market": clean(market),
-            "low": clean(low),
-            "high": clean(high),
+            "low": clean(low.text if low else None),
+            "market": clean(market.text if market else None),
+            "high": None
         }
-
-    except Exception as e:
-        print("TCGPLAYER ERROR:", e)
+    except Exception:
         return None
 
 
-# -------------------------------
-# CARDMARKET SCRAPER
-# -------------------------------
-def scrape_cardmarket(name, set_name):
+def lookup_cardmarket(name, set_name):
+    """Scrape minimal Cardmarket pricing."""
+    safe = name.replace(" ", "+")
+    url = f"https://www.cardmarket.com/en/Pokemon/Products/Search?searchString={safe}"
+
     try:
-        query = urllib.parse.quote(f"{name} {set_name}")
-        url = f"https://www.cardmarket.com/en/Pokemon/Products/Search?searchString={query}"
-
         r = requests.get(url, headers=HEADERS, timeout=10)
-        if r.status_code != 200:
-            return None
-
         soup = BeautifulSoup(r.text, "html.parser")
 
-        # Prices on Cardmarket search page
-        low_el = soup.select_one(".price-container .col-6:nth-of-type(1)")
-        trend_el = soup.select_one(".price-container .col-6:nth-of-type(2)")
+        row = soup.find("div", class_="row no-gutters")
+        if not row:
+            return None
 
-        def extract_price(tag):
-            if not tag:
-                return None
-            text = tag.get_text().replace("€", "").replace(",", ".").strip()
-            try:
-                return float(text)
-            except:
-                return None
+        low = row.find("div", class_="col-price")
+        trend = row.find("div", class_="col-trend")
 
         return {
-            "low": extract_price(low_el),
-            "trend": extract_price(trend_el),
+            "low": clean(low.text if low else None),
+            "trend": clean(trend.text if trend else None)
         }
-
-    except Exception as e:
-        print("CARDMARKET ERROR:", e)
+    except:
         return None
 
 
-# -------------------------------
-# MAIN WRAPPER FUNCTION
-# -------------------------------
 def lookup_prices(name, set_name):
-    tcg = scrape_tcgplayer(name, set_name)
-    mk = scrape_cardmarket(name, set_name)
-
+    """Return both TCGPlayer and Cardmarket live prices."""
     return {
-        "tcg": tcg,
-        "mk": mk
+        "tcg": lookup_tcgplayer(name, set_name),
+        "mk": lookup_cardmarket(name, set_name)
     }
-
-
-if __name__ == "__main__":
-    # Quick test
-    print(lookup_prices("Charizard", "Base Set"))
