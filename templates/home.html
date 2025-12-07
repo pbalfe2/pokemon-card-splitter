@@ -1,17 +1,16 @@
 {% extends "layout.html" %}
-
 {% block content %}
-<h2>Pokemon Card Scan and Pricing Tool - By PB</h2>
 
-<p>This tool allows you to:</p>
-<ul>
-    <li>Upload a sheet containing several Pokémon / TCG cards</li>
-    <li>Automatically detect and crop each card</li>
-    <li>Identify card name, set, number, rarity</li>
-    <li>Estimate condition (Near Mint, Lightly Played, etc.)</li>
-    <li>Fetch live pricing from TCGplayer & Cardmarket</li>
-    <li>Review cards before sending them to Shopify or Make</li>
-</ul>
+<div class="card p-5 shadow-sm" style="border-radius:16px;">
+    <h2 class="fw-bold mb-3">Pokémon Card Scanner</h2>
+    <p class="text-muted mb-4">
+        Automatically detect, crop, identify, and price your Pokémon cards using AI.
+        Upload a photo and review the detected results.
+    </p>
 
-<a class="btn" href="/upload">Start a New Scan</a>
+    <a href="/upload" class="btn btn-primary btn-lg px-4">
+        Start Scanning Cards
+    </a>
+</div>
+
 {% endblock %}
