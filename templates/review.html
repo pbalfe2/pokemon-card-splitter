@@ -28,24 +28,31 @@
         <label>Condition</label>
         <input class="input" name="condition_{{ card.id }}" value="{{ card.condition }}">
 
-        <div class="price-box">
-            <strong>AI Price Estimate:</strong> {{ card.price_ai_estimate }} CAD<br><br>
+	<div class="price-box">
+    <strong>AI Price Estimate:</strong> {{ card.price_ai_estimate }} CAD <br>
 
-            <strong>TCGplayer:</strong><br>
-            {% if card.tcg %}
-                Low: {{ card.tcg.low }} | Market: {{ card.tcg.market }} | High: {{ card.tcg.high }}
-            {% else %}
-                Not found
-            {% endif %}
-            <br><br>
+    <strong>TCGplayer:</strong>
+    {% if card.tcg %}
+        Low: {{ card.tcg.low }} /
+        Market: {{ card.tcg.market }} /
+        High: {{ card.tcg.high }}
+    {% else %}
+        Not found
+    {% endif %}
+    <br>
 
-            <strong>Cardmarket:</strong><br>
-            {% if card.mk %}
-                Low: {{ card.mk.low }} | Trend: {{ card.mk.trend }}
-            {% else %}
-                Not found
-            {% endif %}
-        </div>
+    <strong>Cardmarket:</strong>
+    {% if card.mk %}
+        Low: {{ card.mk.low }} /
+        Trend: {{ card.mk.trend }}
+    {% else %}
+        Not found
+    {% endif %}
+	</div>
+
+<label>Final Price:</label>
+<input class="input" name="price_{{ card.id }}" value="{{ card.auto_price }}">
+
 
         <label>Final Price</label>
         <input class="input" name="price_{{ card.id }}" value="{{ card.auto_price }}">

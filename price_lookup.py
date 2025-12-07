@@ -1,90 +1,97 @@
-# price_lookup.py
 import requests
+from bs4 import BeautifulSoup
 import urllib.parse
 
-def lookup_prices(card_name, set_name):
-    safe = urllib.parse.quote_plus(f"{card_name} {set_name}")
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+}
 
-    # TCGplayer search (unofficial GET scraping)
-    tcg_url = f"https://api.tcgplayer.com/catalog/products?productName={safe}"
-    # Cardmarket price guide (HTML parse)
-    mk_url = f"https://www.cardmarket.com/en/Pokemon/Products/Search?searchString={safe}"
 
-    prices = {
-        "tcgplayer": None,
-        "cardmarket": None,
-        "best_price": None
+# -------------------------------
+# TCGPLAYER SCRAPER
+# -------------------------------
+def scrape_tcgplayer(name, set_name):
+    try:
+        query = urllib.parse.quote(f"{name} {set_name}")
+        url = f"https://www.tcgplayer.com/search/pokemon/product?q={query}"
+
+        r = requests.get(url, headers=HEADERS, timeout=10)
+        if r.status_code != 200:
+            return None
+
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        # Find price fields on search result tiles
+        market = soup.select_one(".price-point__market .price-point__value")
+        low = soup.select_one(".price-point__low .price-point__value")
+        high = soup.select_one(".price-point__high .price-point__value")
+
+        def clean(x):
+            if not x:
+                return None
+            return float(x.text.replace("$", "").replace(",", "").strip())
+
+        return {
+            "market": clean(market),
+            "low": clean(low),
+            "high": clean(high),
+        }
+
+    except Exception as e:
+        print("TCGPLAYER ERROR:", e)
+        return None
+
+
+# -------------------------------
+# CARDMARKET SCRAPER
+# -------------------------------
+def scrape_cardmarket(name, set_name):
+    try:
+        query = urllib.parse.quote(f"{name} {set_name}")
+        url = f"https://www.cardmarket.com/en/Pokemon/Products/Search?searchString={query}"
+
+        r = requests.get(url, headers=HEADERS, timeout=10)
+        if r.status_code != 200:
+            return None
+
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        # Prices on Cardmarket search page
+        low_el = soup.select_one(".price-container .col-6:nth-of-type(1)")
+        trend_el = soup.select_one(".price-container .col-6:nth-of-type(2)")
+
+        def extract_price(tag):
+            if not tag:
+                return None
+            text = tag.get_text().replace("€", "").replace(",", ".").strip()
+            try:
+                return float(text)
+            except:
+                return None
+
+        return {
+            "low": extract_price(low_el),
+            "trend": extract_price(trend_el),
+        }
+
+    except Exception as e:
+        print("CARDMARKET ERROR:", e)
+        return None
+
+
+# -------------------------------
+# MAIN WRAPPER FUNCTION
+# -------------------------------
+def lookup_prices(name, set_name):
+    tcg = scrape_tcgplayer(name, set_name)
+    mk = scrape_cardmarket(name, set_name)
+
+    return {
+        "tcg": tcg,
+        "mk": mk
     }
 
-    # -------- TCGPLAYER (scrape low/market/high) ----------
-    try:
-        r = requests.get(tcg_url, timeout=8)
-        data = r.json()
 
-        if "results" in data and len(data["results"]) > 0:
-            # First matching product
-            p = data["results"][0]
-
-            prices["tcgplayer"] = {
-                "low": p.get("lowPrice", None),
-                "market": p.get("marketPrice", None),
-                "high": p.get("highPrice", None)
-            }
-    except:
-        pass
-
-    # -------- CARDMARKET (scrape price guide) ----------
-    try:
-        r = requests.get(mk_url, timeout=8)
-        html = r.text
-
-        low = extract_between(html, 'product-cell-price', '</')
-        trend = extract_between(html, 'product-cell-trend', '</')
-
-        prices["cardmarket"] = {
-            "low": clean_price(low),
-            "trend": clean_price(trend)
-        }
-    except:
-        pass
-
-    # -------- BEST PRICE DECISION ----------
-    candidates = []
-
-    if prices["tcgplayer"]:
-        for v in prices["tcgplayer"].values():
-            if v is not None:
-                candidates.append(float(v) * 1.35)  # USD→CAD approx
-
-    if prices["cardmarket"]:
-        for v in prices["cardmarket"].values():
-            if v is not None:
-                candidates.append(float(v) * 1.48)  # EUR→CAD approx
-
-    prices["best_price"] = round(min(candidates), 2) if candidates else None
-
-    return prices
-
-
-def extract_between(text, start, end):
-    """Simple inline HTML substring extraction."""
-    try:
-        idx = text.find(start)
-        if idx == -1:
-            return None
-        idx += len(start)
-        sub = text[idx:]
-        end_idx = sub.find(end)
-        return sub[:end_idx].strip()
-    except:
-        return None
-
-
-def clean_price(val):
-    if not val:
-        return None
-    val = val.replace("€", "").replace("$", "").replace(",", ".").strip()
-    try:
-        return float(val)
-    except:
-        return None
+if __name__ == "__main__":
+    # Quick test
+    print(lookup_prices("Charizard", "Base Set"))

@@ -122,7 +122,34 @@ def upload():
 def review(session_id):
     with open(f"session_data/{session_id}.json") as f:
         cards = json.load(f)
-    return render_template("review.html", cards=cards, session_id=session_id)
+
+    updated_cards = []
+
+    for card in cards:
+        # Fetch TCGplayer + Cardmarket live prices
+        prices = lookup_prices(card["name"], card["set"])
+
+        # Attach price objects directly to card
+        card["tcg"] = prices.get("tcg")
+        card["mk"]  = prices.get("mk")
+
+        # Determine best auto price
+        ai_est = card.get("price_ai_estimate")
+
+        tcg_market = prices.get("tcg", {}).get("market")
+        mk_trend   = prices.get("mk", {}).get("trend")
+
+        if tcg_market:
+            card["auto_price"] = tcg_market
+        elif mk_trend:
+            card["auto_price"] = mk_trend
+        else:
+            card["auto_price"] = ai_est
+
+        updated_cards.append(card)
+
+    return render_template("review.html", cards=updated_cards, session_id=session_id)
+
 
 
 @app.route("/price_lookup", methods=["POST"])
