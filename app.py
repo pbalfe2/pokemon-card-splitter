@@ -12,6 +12,7 @@ from card_cropper import crop_cards, create_thumbnail
 from card_ai import identify_and_grade_card
 from price_lookup import lookup_prices
 
+
 app = Flask(__name__)
 app.config.from_object("config")
 
@@ -24,90 +25,96 @@ for folder in ["uploads", "cropped", "static/thumbs", "session_data"]:
     os.makedirs(folder, exist_ok=True)
 
 
-# ---------------------------------------------------------------------
-# HOME PAGE
-# ---------------------------------------------------------------------
 @app.route("/")
 @basic_auth.required
 def home():
     return render_template("home.html")
 
 
-# ---------------------------------------------------------------------
-# UPLOAD PAGE
-# ---------------------------------------------------------------------
 @app.route("/upload", methods=["GET", "POST"])
 @basic_auth.required
 def upload():
     if request.method == "GET":
         return render_template("upload.html")
 
+    # ---------------------------
     # 1. Save uploaded image
-    f = request.files["image"]
+    # ---------------------------
+    file = request.files["image"]
     fname = f"{uuid.uuid4()}.png"
     path = os.path.join("uploads", fname)
-    f.save(path)
+    file.save(path)
 
+    # ---------------------------
     # 2. Detect bounding boxes
+    # ---------------------------
     detection = detect_card_boxes(path)
     boxes = detection.get("cards", [])
 
-    print("=== RAW DETECTION OUTPUT ===")
-    print(detection)
+    # ---------------------------
+    # 3. Crop cards
+    # ---------------------------
+    cropped_paths = crop_cards(path, boxes)
 
-    # 3. Crop cards into images
-    cropped = crop_cards(path, boxes)
     cards = []
 
-    # 4. Process each cropped card
-    for idx, cpath in enumerate(cropped, start=1):
+    # ---------------------------
+    # 4. Process each card
+    # ---------------------------
+    for idx, cpath in enumerate(cropped_paths, start=1):
 
-        print(f"=== CARD AI ANALYSIS: {cpath}")
-        analysis = identify_and_grade_card(cpath)
+        # AI identification
+        info = identify_and_grade_card(cpath)
 
-        # Basic fields with safe defaults
-        name = analysis.get("name", "Unknown")
-        set_name = analysis.get("set", "")
-        condition = analysis.get("condition", "Near Mint")
-        ai_price = analysis.get("price_ai_estimate", "N/A")
+        # Live price lookup
+        prices = lookup_prices(info["name"], info["set"])
 
-        # 5. Live pricing lookup
-        prices = lookup_prices(name, set_name)
-        tcg = prices.get("tcg", {})
-        mk = prices.get("mk", {})
+        # Format price block
+        tcg = prices.get("tcg")
+        mk = prices.get("mk")
+        fx = prices.get("fx")
 
-        # Best auto price selection
-        auto_price = None
-        if tcg.get("market"):
-            auto_price = tcg["market"]
-        elif mk.get("trend"):
-            auto_price = mk["trend"]
+        # Convert to CAD if available
+        cad_values = {
+            "tcg_cad": prices.get("tcg_cad"),
+            "mk_cad": prices.get("mk_cad")
+        }
+
+        # Determine auto price
+        if prices.get("tcg_cad"):
+            auto_price = f"{prices['tcg_cad']} CAD"
+        elif prices.get("mk_cad"):
+            auto_price = f"{prices['mk_cad']} CAD"
         else:
-            auto_price = ai_price
+            auto_price = info.get("price_ai_estimate")
 
-        # 6. Generate thumbnail
-        thumb_path = f"static/thumbs/{idx}.jpg"
-        create_thumbnail(cpath, thumb_path)
+        # Create thumbnail
+        thumb = f"static/thumbs/{idx}.jpg"
+        create_thumbnail(cpath, thumb)
 
-        # 7. Save card record
+        # Build card object
         cards.append({
             "id": idx,
             "image": cpath,
-            "image_thumb": thumb_path,
+            "image_thumb": thumb,
 
-            "name": name,
-            "set": set_name,
-            "number": analysis.get("number"),
-            "rarity": analysis.get("rarity"),
-            "condition": condition,
+            "name": info.get("name"),
+            "set": info.get("set"),
+            "number": info.get("number"),
+            "rarity": info.get("rarity"),
+            "condition": info.get("condition", "Near Mint"),
+            "price_ai_estimate": info.get("price_ai_estimate"),
 
-            "price_ai_estimate": ai_price,
             "tcg": tcg,
             "mk": mk,
+            "fx": fx,
+            "tcg_cad": cad_values["tcg_cad"],
+            "mk_cad": cad_values["mk_cad"],
+
             "auto_price": auto_price
         })
 
-    # 8. Save session JSON
+    # Save to session file
     session_id = str(uuid.uuid4())
     with open(f"session_data/{session_id}.json", "w") as f:
         json.dump(cards, f, indent=2)
@@ -115,59 +122,21 @@ def upload():
     return redirect(f"/review/{session_id}")
 
 
-# ---------------------------------------------------------------------
-# REVIEW PAGE
-# ---------------------------------------------------------------------
 @app.route("/review/<session_id>")
 @basic_auth.required
 def review(session_id):
     with open(f"session_data/{session_id}.json") as f:
         cards = json.load(f)
-
-    updated_cards = []
-
-    for card in cards:
-        # Refresh pricing (so user sees latest)
-        prices = lookup_prices(card["name"], card["set"])
-        tcg = prices.get("tcg", {})
-        mk = prices.get("mk", {})
-
-        # Best price selection
-        tcg_market = tcg.get("market")
-        mk_trend = mk.get("trend")
-
-        if tcg_market:
-            auto_price = tcg_market
-        elif mk_trend:
-            auto_price = mk_trend
-        else:
-            auto_price = card.get("price_ai_estimate")
-
-        card["tcg"] = tcg
-        card["mk"] = mk
-        card["auto_price"] = auto_price
-
-        updated_cards.append(card)
-
-    return render_template("review.html", cards=updated_cards, session_id=session_id)
+    return render_template("review.html", cards=cards, session_id=session_id)
 
 
-# ---------------------------------------------------------------------
-# LIVE PRICE API ENDPOINT
-# ---------------------------------------------------------------------
 @app.route("/price_lookup", methods=["POST"])
 def price_api():
     data = request.json
-    name = data["name"]
-    set_name = data["set"]
-
-    prices = lookup_prices(name, set_name)
-    return jsonify(prices=prices)
+    prices = lookup_prices(data["name"], data["set"])
+    return jsonify(prices)
 
 
-# ---------------------------------------------------------------------
-# APPROVAL + WEBHOOK
-# ---------------------------------------------------------------------
 @app.route("/approve/<session_id>", methods=["POST"])
 @basic_auth.required
 def approve(session_id):
@@ -177,26 +146,23 @@ def approve(session_id):
     approved = []
 
     for card in cards:
-        i = card["id"]
+        cid = card["id"]
 
-        if f"approve_{i}" in request.form:
-            card["name"] = request.form.get(f"name_{i}")
-            card["set"] = request.form.get(f"set_{i}")
-            card["number"] = request.form.get(f"number_{i}")
-            card["rarity"] = request.form.get(f"rarity_{i}")
-            card["condition"] = request.form.get(f"condition_{i}")
-            card["price"] = request.form.get(f"price_{i}")
+        if f"approve_{cid}" in request.form:
+
+            card["name"] = request.form.get(f"name_{cid}")
+            card["set"] = request.form.get(f"set_{cid}")
+            card["number"] = request.form.get(f"number_{cid}")
+            card["rarity"] = request.form.get(f"rarity_{cid}")
+            card["condition"] = request.form.get(f"condition_{cid}")
+            card["price"] = request.form.get(f"price_{cid}")
 
             approved.append(card)
 
-    # Send to Make.com webhook
     requests.post(WEBHOOK_URL, json={"approved_cards": approved})
 
     return render_template("sent.html", count=len(approved))
 
 
-# ---------------------------------------------------------------------
-# MAIN
-# ---------------------------------------------------------------------
 if __name__ == "__main__":
     app.run(port=5000)
