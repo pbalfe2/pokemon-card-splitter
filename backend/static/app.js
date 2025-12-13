@@ -67,7 +67,7 @@ function pollJob() {
 
         if (job.status === "completed") {
           clearInterval(interval);
-          renderResults(job.cards || []);
+          renderResults(job.cards || [], job.front);
         }
 
         if (job.status === "error") {
@@ -81,7 +81,7 @@ function pollJob() {
   }, 1500);
 }
 
-function renderResults(cards) {
+function renderResults(cards, jobFront) {
   var output = document.getElementById("output");
 
   if (!cards || !cards.length) {
@@ -98,8 +98,8 @@ function renderResults(cards) {
         : 0;
 
     var imgPath = "";
-    if (card.front) {
-      imgPath = "/data/" + card.front.replace(/^data\//, "");
+    if (jobFront) {
+      imgPath = "/data/" + jobFront.replace(/^data\//, "");
     }
 
     output.innerHTML +=
