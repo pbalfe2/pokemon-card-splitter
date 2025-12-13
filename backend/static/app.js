@@ -1,112 +1,133 @@
-let currentJobId = null;
+console.log("app.js loaded");
 
-async function upload() {
-  const front = document.getElementById("front").files[0];
-  const back = document.getElementById("back").files[0];
+var currentJobId = null;
 
-  if (!front) {
+document.addEventListener("DOMContentLoaded", function () {
+  console.log("DOM ready");
+
+  var btn = document.getElementById("analyzeBtn");
+  if (!btn) {
+    console.error("Analyze button not found");
+    return;
+  }
+
+  btn.addEventListener("click", function () {
+    console.log("Analyze button clicked");
+    upload();
+  });
+});
+
+function upload() {
+  var frontInput = document.getElementById("front");
+  var backInput = document.getElementById("back");
+  var output = document.getElementById("output");
+
+  if (!frontInput || !frontInput.files || !frontInput.files[0]) {
     alert("Front image is required");
     return;
   }
 
-  const formData = new FormData();
-  formData.append("front", front);
-  if (back) formData.append("back", back);
+  output.innerHTML = "<p>Uploading & analyzing...</p>";
 
-  document.getElementById("output").innerHTML = "<p>Analyzing cards…</p>";
+  var formData = new FormData();
+  formData.append("front", frontInput.files[0]);
 
-  const res = await fetch("/upload/", {
+  if (backInput && backInput.files && backInput.files[0]) {
+    formData.append("back", backInput.files[0]);
+  }
+
+  fetch("/upload/", {
     method: "POST",
     body: formData
-  });
-
-  const data = await res.json();
-  currentJobId = data.job_id;
-
-  pollJob();
+  })
+    .then(function (res) {
+      return res.json();
+    })
+    .then(function (data) {
+      console.log("Upload response:", data);
+      currentJobId = data.job_id;
+      pollJob();
+    })
+    .catch(function (err) {
+      console.error("Upload failed", err);
+      output.innerHTML = "<p style='color:red'>Upload failed</p>";
+    });
 }
 
 function pollJob() {
-  const interval = setInterval(async () => {
-    const res = await fetch(`/jobs/${currentJobId}`);
-    const job = await res.json();
+  var output = document.getElementById("output");
 
-    console.log("JOB RESPONSE:", job);
+  var interval = setInterval(function () {
+    fetch("/jobs/" + currentJobId)
+      .then(function (res) {
+        return res.json();
+      })
+      .then(function (job) {
+        console.log("Job status:", job);
 
-    if (job.status === "completed") {
-      clearInterval(interval);
+        if (job.status === "completed") {
+          clearInterval(interval);
+          renderResults(job.cards || []);
+        }
 
-      // 🔥 IMPORTANT FIX
-      if (Array.isArray(job.cards)) {
-        renderResults(job.cards);
-      } else if (job.cards?.cards) {
-        renderResults(job.cards.cards);
-      } else {
-        renderResults(job);
-      }
-    }
-
-    if (job.status === "error") {
-      clearInterval(interval);
-      document.getElementById("output").innerHTML =
-        "<p>Error processing cards.</p>";
-    }
+        if (job.status === "error") {
+          clearInterval(interval);
+          output.innerHTML = "<p style='color:red'>Job failed</p>";
+        }
+      })
+      .catch(function (err) {
+        console.error("Polling failed", err);
+      });
   }, 1500);
 }
 
-
 function renderResults(cards) {
-  const output = document.getElementById("output");
+  var output = document.getElementById("output");
 
-  output.innerHTML = `
-    <h3>DEBUG OUTPUT</h3>
-    <pre>${JSON.stringify(cards, null, 2)}</pre>
-  `;
-}
+  if (!cards || !cards.length) {
+    output.innerHTML = "<p>No cards detected</p>";
+    return;
+  }
 
-  cards.forEach(card => {
-    const confidence = Math.round((card.identity?.confidence || 0) * 100);
-    const imgPath = "/" + card.front.replace(/^data\//, "");
+  output.innerHTML = "";
 
-    output.innerHTML += `
-      <div class="card-block">
-        <div class="card-left">
-          <img src="${imgPath}" alt="Card image"
-               onerror="this.src='/static/placeholder.png'">
-        </div>
+  cards.forEach(function (card) {
+    var confidence =
+      card.identity && card.identity.confidence
+        ? Math.round(card.identity.confidence * 100)
+        : 0;
 
-        <div class="card-right">
-          <h2>${card.identity?.name || "Unknown card"}</h2>
-          <div class="sub">
-            ${card.identity?.set || ""} · ${card.identity?.number || ""}
-          </div>
+    var imgPath = "";
+    if (card.front) {
+      imgPath = "/" + card.front.replace(/^data\//, "");
+    }
 
-          <div class="stats">
-            <div class="stat">
-              <span class="label">Condition</span>
-              <span class="value">${card.condition}</span>
-            </div>
-
-            <div class="stat">
-              <span class="label">Est. Price</span>
-              <span class="value">$${card.price?.estimated_price ?? "—"}</span>
-            </div>
-
-            <div class="stat">
-              <span class="label">Confidence</span>
-              <span class="value ${confidence >= 80 ? "good" : "warn"}">
-                ${confidence}%
-              </span>
-            </div>
-          </div>
-
-          <button onclick="generateListing()">Generate eBay Listing</button>
-        </div>
-      </div>
-    `;
+    output.innerHTML +=
+      '<div class="card-block">' +
+      '  <div class="card-left">' +
+      '    <img src="' + imgPath + '" alt="Card image">' +
+      "  </div>" +
+      '  <div class="card-right">' +
+      "    <h2>" +
+      (card.identity ? card.identity.name : "Unknown card") +
+      "</h2>" +
+      '    <div class="sub">' +
+      (card.identity ? card.identity.set : "") +
+      " · " +
+      (card.identity ? card.identity.number : "") +
+      "</div>" +
+      '    <div class="stats">' +
+      '      <div class="stat"><span class="label">Condition</span><span class="value">' +
+      (card.condition || "-") +
+      "</span></div>" +
+      '      <div class="stat"><span class="label">Est. Price</span><span class="value">$' +
+      (card.price ? card.price.estimated_price : "-") +
+      "</span></div>" +
+      '      <div class="stat"><span class="label">Confidence</span><span class="value">' +
+      confidence +
+      "%</span></div>" +
+      "    </div>" +
+      "  </div>" +
+      "</div>";
   });
-}
-
-function generateListing() {
-  alert("eBay listing generation hooked and ready.");
 }
