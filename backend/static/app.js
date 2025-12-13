@@ -89,26 +89,53 @@ function renderResults(cards, jobFront) {
     return;
   }
 
-  output.innerHTML +=
-  '<div class="card-block">' +
-  '  <div class="card-left">' +
-  '    <img src="' + imgPath + '" alt="Card image">' +
-  "  </div>" +
-  '  <div class="card-right">' +
-  "    <h2>" + card.identity.name + "</h2>" +
-  '    <div class="sub">' +
-  card.identity.set + " · " + card.identity.number +
-  "    </div>" +
-  metaHtml +
-  '    <div class="stats">' +
-  '      <div class="stat"><span class="label">Condition</span><span class="value">' +
-  (card.condition || "-") +
-  "</span></div>" +
-  '      <div class="stat"><span class="label">Est. Price</span><span class="value">$' +
-  (card.price?.estimated_price ?? "-") +
-  "</span></div>" +
-  '      <div class="stat"><span class="label">Confidence</span><span class="value">' +
-  confidence + "%</span></div>" +
-  "    </div>" +
-  "  </div>" +
-  "</div>";
+  output.innerHTML = "";
+
+  var imgPath = "";
+  if (jobFront) {
+    imgPath = "/data/" + jobFront.replace(/^data\//, "");
+  }
+
+  cards.forEach(function (card) {
+    var confidence = card.identity?.confidence
+      ? Math.round(card.identity.confidence * 100)
+      : 0;
+
+    var rarity = card.identity?.rarity || "Unknown";
+    var holo = card.identity?.holo ? "Holo" : "Non-Holo";
+
+    var metaHtml =
+      '<div class="meta">' +
+      '  <span class="badge rarity">' + rarity + '</span>' +
+      '  <span class="badge holo">' + holo + '</span>' +
+      '</div>';
+
+    output.innerHTML +=
+      '<div class="card-block">' +
+      '  <div class="card-left">' +
+      '    <img src="' + imgPath + '" alt="Card image">' +
+      "  </div>" +
+      '  <div class="card-right">' +
+      "    <h2>" + (card.identity?.name || "Unknown card") + "</h2>" +
+      '    <div class="sub">' +
+      (card.identity?.set || "") +
+      " · " +
+      (card.identity?.number || "") +
+      "    </div>" +
+      metaHtml +
+      '    <div class="stats">' +
+      '      <div class="stat"><span class="label">Condition</span><span class="value">' +
+      (card.condition || "-") +
+      "</span></div>" +
+      '      <div class="stat"><span class="label">Est. Price</span><span class="value">$' +
+      (card.price?.estimated_price ?? "-") +
+      "</span></div>" +
+      '      <div class="stat"><span class="label">Confidence</span><span class="value">' +
+      confidence +
+      "%</span></div>" +
+      "    </div>" +
+      "  </div>" +
+      "</div>";
+  });
+}
+
