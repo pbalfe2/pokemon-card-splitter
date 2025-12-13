@@ -99,7 +99,7 @@ function renderResults(cards) {
 
     var imgPath = "";
     if (card.front) {
-      imgPath = "/" + card.front.replace(/^data\//, "");
+      imgPath = "/data/" + card.front.replace(/^data\//, "");
     }
 
     output.innerHTML +=
