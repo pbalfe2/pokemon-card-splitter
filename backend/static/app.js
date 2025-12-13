@@ -3,7 +3,7 @@ async function upload() {
   const back = document.getElementById("back").files[0];
 
   if (!front || !back) {
-    alert("Please select both images");
+    alert("Please select both front and back images");
     return;
   }
 
@@ -18,15 +18,36 @@ async function upload() {
     body: formData
   });
 
+  if (!res.ok) {
+    document.getElementById("output").textContent =
+      "Upload failed (" + res.status + ")";
+    return;
+  }
+
   const data = await res.json();
+
+  if (!data.job_id) {
+    document.getElementById("output").textContent =
+      "No job_id returned from server";
+    return;
+  }
+
   pollJob(data.job_id);
 }
 
 async function pollJob(jobId) {
-  document.getElementById("output").textContent = "Processing...";
+  document.getElementById("output").textContent = "Processing job " + jobId;
 
   const interval = setInterval(async () => {
     const res = await fetch(`/jobs/${jobId}`);
+
+    if (!res.ok) {
+      clearInterval(interval);
+      document.getElementById("output").textContent =
+        "Job not found or failed";
+      return;
+    }
+
     const job = await res.json();
 
     if (job.status === "completed") {
@@ -35,16 +56,4 @@ async function pollJob(jobId) {
         JSON.stringify(job, null, 2);
     }
   }, 2000);
-}
-async function generateListing() {
-  const output = JSON.parse(document.getElementById("output").textContent);
-  const jobId = output ? output.job_id : null;
-
-  if (!jobId) return alert("No job loaded");
-
-  const res = await fetch(`/listings/${jobId}`, { method: "POST" });
-  const listing = await res.json();
-
-  document.getElementById("output").textContent =
-    JSON.stringify(listing, null, 2);
 }
