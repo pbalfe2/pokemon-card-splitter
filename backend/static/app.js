@@ -31,28 +31,38 @@ function pollJob() {
     const res = await fetch(`/jobs/${currentJobId}`);
     const job = await res.json();
 
+    console.log("JOB RESPONSE:", job);
+
     if (job.status === "completed") {
       clearInterval(interval);
-      renderResults(job.cards);
+
+      // 🔥 IMPORTANT FIX
+      if (Array.isArray(job.cards)) {
+        renderResults(job.cards);
+      } else if (job.cards?.cards) {
+        renderResults(job.cards.cards);
+      } else {
+        renderResults(job);
+      }
     }
 
     if (job.status === "error") {
       clearInterval(interval);
-      document.getElementById("output").innerHTML = "<p>Error processing cards.</p>";
+      document.getElementById("output").innerHTML =
+        "<p>Error processing cards.</p>";
     }
   }, 1500);
 }
 
+
 function renderResults(cards) {
-  console.log("renderResults called with:", cards);
-
   const output = document.getElementById("output");
-  output.innerHTML = "";
 
-  if (!cards || !cards.length) {
-    output.innerHTML = "<p>No cards detected.</p>";
-    return;
-  }
+  output.innerHTML = `
+    <h3>DEBUG OUTPUT</h3>
+    <pre>${JSON.stringify(cards, null, 2)}</pre>
+  `;
+}
 
   cards.forEach(card => {
     const confidence = Math.round((card.identity?.confidence || 0) * 100);
