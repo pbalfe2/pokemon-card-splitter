@@ -4,99 +4,66 @@ from backend.services.card_splitter import split_cards
 from backend.services.card_matcher import match_cards
 from backend.services.openai_vision import identify_card
 from backend.services.condition_grader import grade_condition
+from backend.services.condition_normalizer import normalize_condition
 from backend.services.ebay_pricing import price_card
 
 
 async def enqueue_job(job_id: str):
-    """
-    Enqueue a background processing task.
-    Fire-and-forget, but internally guarded.
-    """
     asyncio.create_task(process(job_id))
 
 
 async def process(job_id: str):
-    """
-    Main processing pipeline:
-    - Split cards
-    - Match front/back
-    - Identify card
-    - Grade condition
-    - Fetch eBay pricing
-    - Persist results to job JSON
-
-    This function NEVER raises uncaught exceptions.
-    """
-
     try:
         job = load_job(job_id)
         job["status"] = "processing"
         save_job(job_id, job)
 
-        # --- Split images into cards (MVP = 1 card) ---
         fronts = await split_cards(job["front"], job_id)
-        backs = await split_cards(job["back"], job_id)
+        backs = await split_cards(job["back"], job_id) if job.get("back") else []
 
-        pairs = match_cards(fronts, backs)
+        pairs = match_cards(fronts, backs) if backs else [
+            {"front": f["card_image"], "back": None} for f in fronts
+        ]
+
         results = []
 
-        for idx, pair in enumerate(pairs, start=1):
-            card_result = {
-                "index": idx,
-                "front": pair["front"],
-                "back": pair["back"],
+        for pair in pairs:
+            card = {
                 "identity": None,
                 "condition": None,
                 "price": None,
+                "warnings": [],
                 "errors": []
             }
 
-            # --- Identify card ---
             try:
-                card_result["identity"] = await identify_card(pair["front"])
-            except Exception as e:
-                card_result["errors"].append(
-                    f"identify_card failed: {str(e)}"
-                )
-
-            # --- Grade condition ---
-            try:
-                card_result["condition"] = await grade_condition(
-                    pair["front"], pair["back"]
+                card["identity"] = await identify_card(
+                    pair["front"], pair.get("back")
                 )
             except Exception as e:
-                card_result["errors"].append(
-                    f"grade_condition failed: {str(e)}"
-                )
+                card["errors"].append(str(e))
 
-            # --- Price lookup ---
             try:
-                if card_result["identity"] and card_result["condition"]:
-                    card_result["price"] = await price_card(
-                        card_result["identity"],
-                        card_result["condition"]
+                raw_condition = await grade_condition(
+                    pair["front"], pair.get("back")
+                )
+                card["condition"] = normalize_condition(raw_condition)
+            except Exception as e:
+                card["errors"].append(str(e))
+
+            try:
+                if card["identity"] and card["condition"]:
+                    card["price"] = await price_card(
+                        card["identity"], card["condition"]
                     )
-                else:
-                    card_result["price"] = {
-                        "estimated_price": None,
-                        "confidence": "unknown"
-                    }
             except Exception as e:
-                card_result["errors"].append(
-                    f"price_card failed: {str(e)}"
-                )
+                card["errors"].append(str(e))
 
-            results.append(card_result)
+            results.append(card)
 
-        # --- Finalize job ---
         job["status"] = "completed"
         job["cards"] = results
         save_job(job_id, job)
 
     except Exception as fatal:
-        # Absolute last-resort safety net
-        job = {
-            "status": "failed",
-            "error": str(fatal)
-        }
-        save_job(job_id, job)
+        save_job(job_id, {"status": "failed", "error": str(fatal)})

@@ -2,33 +2,20 @@ async function upload() {
   const front = document.getElementById("front").files[0];
   const back = document.getElementById("back").files[0];
 
-  if (!front || !back) {
-    alert("Please select both front and back images");
+  if (!front) {
+    alert("Front image is required");
     return;
   }
 
   const formData = new FormData();
   formData.append("front", front);
-  formData.append("back", back);
+  if (back) formData.append("back", back);
 
-  document.getElementById("output").textContent = "Uploading...";
-
-  const res = await fetch("/upload/", {
-    method: "POST",
-    body: formData
-  });
-
-  if (!res.ok) {
-    document.getElementById("output").textContent =
-      "Upload failed (" + res.status + ")";
-    return;
-  }
-
+  const res = await fetch("/upload/", { method: "POST", body: formData });
   const data = await res.json();
 
   if (!data.job_id) {
-    document.getElementById("output").textContent =
-      "No job_id returned from server";
+    alert("Upload failed");
     return;
   }
 
