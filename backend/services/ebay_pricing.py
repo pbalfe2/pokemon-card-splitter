@@ -1,5 +1,5 @@
 import requests
-from config import EBAY_OAUTH_TOKEN
+from backend.config import EBAY_OAUTH_TOKEN
 
 async def price_card(identity, condition):
     headers = {

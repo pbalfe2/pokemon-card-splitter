@@ -1,8 +1,9 @@
 from fastapi import APIRouter, UploadFile, File
 import uuid
-from services.filesystem import save_upload
-from state import save_job
-from tasks import enqueue_job
+from backend.services.filesystem import save_upload
+from backend.state import save_job
+from backend.tasks import enqueue_job
+
 
 router = APIRouter()
 
