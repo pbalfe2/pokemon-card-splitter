@@ -1,3 +1,5 @@
+let currentJobId = null;
+
 async function upload() {
   const front = document.getElementById("front").files[0];
   const back = document.getElementById("back").files[0];
@@ -11,78 +13,65 @@ async function upload() {
   formData.append("front", front);
   if (back) formData.append("back", back);
 
-  const res = await fetch("/upload/", { method: "POST", body: formData });
+  document.getElementById("output").innerHTML = "<p>Analyzing cards…</p>";
+
+  const res = await fetch("/upload/", {
+    method: "POST",
+    body: formData
+  });
+
   const data = await res.json();
+  currentJobId = data.job_id;
 
-  if (!data.job_id) {
-    alert("Upload failed");
-    return;
-  }
-
-  pollJob(data.job_id);
+  pollJob();
 }
 
-async function pollJob(jobId) {
-  const output = document.getElementById("output");
-
-  output.innerHTML = `
-    <div class="status queued">Queued…</div>
-  `;
-
+function pollJob() {
   const interval = setInterval(async () => {
-    const res = await fetch(`/jobs/${jobId}`);
-    if (!res.ok) {
-      clearInterval(interval);
-      output.innerHTML = `<div class="error">Job failed or not found</div>`;
-      return;
-    }
-
+    const res = await fetch(`/jobs/${currentJobId}`);
     const job = await res.json();
 
-    if (job.status === "processing") {
-      output.innerHTML = `<div class="status processing">Analyzing cards…</div>`;
+    if (job.status === "completed") {
+      clearInterval(interval);
+      renderResults(job.cards);
     }
 
-if (job.status === "completed") {
-  clearInterval(interval);
-
-  renderResults(job.cards);
-
-  // 👇 FIX 4 — enable listing button now that analysis is done
-  document.getElementById("generateListing").disabled = false;
-}
-
-
-    if (job.status === "failed") {
+    if (job.status === "error") {
       clearInterval(interval);
-      output.innerHTML = `<div class="error">${job.error}</div>`;
+      document.getElementById("output").innerHTML = "<p>Error processing cards.</p>";
     }
   }, 1500);
 }
 
 function renderResults(cards) {
+  console.log("renderResults called with:", cards);
+
   const output = document.getElementById("output");
   output.innerHTML = "";
 
+  if (!cards || !cards.length) {
+    output.innerHTML = "<p>No cards detected.</p>";
+    return;
+  }
+
   cards.forEach(card => {
     const confidence = Math.round((card.identity?.confidence || 0) * 100);
+    const imgPath = "/" + card.front.replace(/^data\//, "");
 
     output.innerHTML += `
       <div class="card-block">
-
         <div class="card-left">
-          <img src="/${card.front.replace(/^data\//, '')}" alt="Card image">
+          <img src="${imgPath}" alt="Card image"
+               onerror="this.src='/static/placeholder.png'">
         </div>
 
         <div class="card-right">
-          <div class="card-header">
-            <h2>${card.identity?.name || "Unknown card"}</h2>
-            <div class="card-sub">
-              ${card.identity?.set || ""} · ${card.identity?.number || ""}
-            </div>
+          <h2>${card.identity?.name || "Unknown card"}</h2>
+          <div class="sub">
+            ${card.identity?.set || ""} · ${card.identity?.number || ""}
           </div>
 
-          <div class="card-stats">
+          <div class="stats">
             <div class="stat">
               <span class="label">Condition</span>
               <span class="value">${card.condition}</span>
@@ -101,15 +90,13 @@ function renderResults(cards) {
             </div>
           </div>
 
-          <div class="card-actions">
-            <button onclick="generateListing()">Generate eBay Listing</button>
-          </div>
+          <button onclick="generateListing()">Generate eBay Listing</button>
         </div>
-
       </div>
     `;
   });
 }
 
-
-
+function generateListing() {
+  alert("eBay listing generation hooked and ready.");
+}

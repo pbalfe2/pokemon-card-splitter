@@ -1,21 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Pokémon Card Analyzer</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+
   <h1>Pokémon Card Analyzer</h1>
 
-  <input type="file" id="front" accept="image/*"><br><br>
-  <input type="file" id="back" accept="image/*"><br><br>
+  <input type="file" id="front">
+  <br>
+  <input type="file" id="back">
+  <br><br>
 
   <button onclick="upload()">Analyze Cards</button>
-  <button onclick="generateListing()">Generate eBay Listing</button>
 
-
-
-  <pre id="output"></pre>
+  <!-- REQUIRED OUTPUT CONTAINER -->
+  <div id="output"></div>
 
   <script src="/static/app.js"></script>
 </body>
