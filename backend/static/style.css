@@ -80,3 +80,25 @@ button:hover {
 .value.warn {
   color: #d97706;
 }
+.meta {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.badge {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.badge.rarity {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.badge.holo {
+  background: #ecfeff;
+  color: #0f766e;
+}
