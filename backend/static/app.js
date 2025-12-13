@@ -97,20 +97,18 @@ function renderResults(cards, jobFront) {
   '  <div class="card-right">' +
   "    <h2>" + card.identity.name + "</h2>" +
   '    <div class="sub">' +
-       card.identity.set + " · " + card.identity.number +
+  card.identity.set + " · " + card.identity.number +
   "    </div>" +
-       metaHtml +
+  metaHtml +
   '    <div class="stats">' +
   '      <div class="stat"><span class="label">Condition</span><span class="value">' +
-         (card.condition || "-") +
+  (card.condition || "-") +
   "</span></div>" +
   '      <div class="stat"><span class="label">Est. Price</span><span class="value">$' +
-         (card.price?.estimated_price ?? "-") +
+  (card.price?.estimated_price ?? "-") +
   "</span></div>" +
   '      <div class="stat"><span class="label">Confidence</span><span class="value">' +
-         confidence + "%</span></div>" +
+  confidence + "%</span></div>" +
   "    </div>" +
   "  </div>" +
   "</div>";
-  
-}
