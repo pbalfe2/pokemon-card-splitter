@@ -1,42 +1,38 @@
-import os
 from PIL import Image
 
-# Ensure output directories exist
-os.makedirs("cropped", exist_ok=True)
-os.makedirs("thumbnails", exist_ok=True)
-
-
 def crop_cards(image_path, box_list):
-    """
-    Crops card images from the detected bounding boxes.
-    Returns a list of paths to the cropped images.
-    """
     img = Image.open(image_path)
-    cropped_paths = []
+    paths = []
 
     for idx, box in enumerate(box_list, start=1):
-        x = box["x"]
-        y = box["y"]
-        w = box["width"]
-        h = box["height"]
-
+        x, y, w, h = box["x"], box["y"], box["width"], box["height"]
         crop = img.crop((x, y, x + w, y + h))
-        output_path = f"cropped/card_{idx}.png"
-        crop.save(output_path)
 
-        cropped_paths.append(output_path)
+        out = f"cropped/front/card_{idx}.png"
+        crop.save(out)
+        paths.append(out)
 
-    return cropped_paths
+    return paths
 
 
-def create_thumbnail(input_path, output_path, size=(200, 200)):
-    """
-    Creates a thumbnail of the cropped card image.
-    Ensures PNG → JPEG conversion works on Render by removing alpha channels.
-    """
+def crop_back_cards(image_path, box_list):
+    img = Image.open(image_path)
+    paths = []
+
+    for idx, box in enumerate(box_list, start=1):
+        x, y, w, h = box["x"], box["y"], box["width"], box["height"]
+        crop = img.crop((x, y, x + w, y + h))
+
+        out = f"cropped/back/card_{idx}.png"
+        crop.save(out)
+        paths.append(out)
+
+    return paths
+
+
+def create_thumbnail(input_path, output_path, size=(220, 220)):
     img = Image.open(input_path)
 
-    # Convert RGBA → RGB (fixes “cannot write mode RGBA as JPEG” error)
     if img.mode == "RGBA":
         img = img.convert("RGB")
 

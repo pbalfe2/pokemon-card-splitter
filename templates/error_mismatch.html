@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="glass-panel center">
+    <h2>Card Count Mismatch</h2>
+    <p>
+        The number of cards detected in the front image ({{ front_count }}) does not match  
+        the number detected in the back image ({{ back_count }}).
+    </p>
+
+    <p>Please retake your pictures ensuring cards are in the same left → right order.</p>
+
+    <a href="/upload" class="btn-primary">Try Again</a>
+</div>
+{% endblock %}

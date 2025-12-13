@@ -1,55 +1,26 @@
 {% extends "layout.html" %}
 {% block content %}
 
-<h2 class="fw-bold mb-3">Upload Card Image</h2>
-<p class="text-muted mb-4">
-    Upload a photo containing one or more Pokémon cards.  
-    The system will automatically detect and crop each card.
-</p>
+<div class="card">
+    <h2>Upload Your Card Images</h2>
 
-<div class="card p-5 shadow-sm" style="border-radius: 16px;">
-    <form action="/upload" method="POST" enctype="multipart/form-data" class="text-center">
+    <form method="POST" enctype="multipart/form-data" onsubmit="showLoading()">
 
-        <label for="fileInput" id="dropArea" class="w-100 p-5 border border-2 border-secondary rounded"
-               style="cursor:pointer; background:#f8f9fc;">
-            <div class="mb-3">
-                <svg width="60" height="60" fill="#6c63ff" viewBox="0 0 16 16">
-                    <path d="M.5 9.9a.5.5 0 0 0 .5-.5V5a2 2 0 0 1 2-2h3a.5.5 0 0 0 0-1H3.001A3.001 3.001 0 0 0 0 5v4.4a.5.5 0 0 0 .5.5z"/>
-                    <path d="M5.646 4.646a.5.5 0 0 1 .708 0L8.5 6.793V1.5a.5.5 0 0 1 1 0v5.293l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.497.497 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708z"/>
-                    <path d="M15.5 6.1a.5.5 0 0 0-.5.5V11a2 2 0 0 1-2 2H10a.5.5 0 0 0 0 1h3.001A3.001 3.001 0 0 0 16 11V6.6a.5.5 0 0 0-.5-.5z"/>
-                </svg>
-            </div>
-            <h5 class="fw-semibold text-secondary">Drop your image here or click to browse</h5>
+        <label>Front Image (required)</label>
+        <input type="file" name="front_image" accept="image/*" required>
+
+        <label>
+            <input type="checkbox" name="include_back" value="yes" onclick="toggleBackUpload(this)">
+            Include Back Image
         </label>
 
-        <input id="fileInput" type="file" name="image" accept="image/*" class="d-none" required>
+        <div id="backUpload" style="display:none;">
+            <label>Back Image (optional)</label>
+            <input type="file" name="back_image" accept="image/*">
+        </div>
 
-        <button class="btn btn-primary btn-lg mt-4 px-4" type="submit">
-            Upload & Analyze
-        </button>
+        <button class="btn">Upload & Analyze</button>
     </form>
 </div>
-
-<script>
-    const dropArea = document.getElementById('dropArea');
-    const input = document.getElementById('fileInput');
-
-    dropArea.addEventListener('click', () => input.click());
-
-    dropArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropArea.style.background = "#eef1ff";
-    });
-
-    dropArea.addEventListener('dragleave', () => {
-        dropArea.style.background = "#f8f9fc";
-    });
-
-    dropArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropArea.style.background = "#f8f9fc";
-        input.files = e.dataTransfer.files;
-    });
-</script>
 
 {% endblock %}

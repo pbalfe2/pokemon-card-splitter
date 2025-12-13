@@ -1,75 +1,51 @@
-# card_ai.py
 import base64
+import json
 from openai import OpenAI
-import os
+client = OpenAI()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+def identify_and_grade_card(image_path):
 
-def encode_image(path):
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8")
-
-
-def identify_and_grade_card(card_path):
-    img_b64 = encode_image(card_path)
+    with open(image_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
 
     prompt = """
-You are an expert in Pokémon card identification, rarity classification, and condition evaluation.
+    Identify this Pokémon card with the following fields:
 
-### REQUIRED OUTPUT FORMAT (JSON ONLY)
-{
-  "name": "...",
-  "set": "...",
-  "number": "...",
-  "rarity": "...",
-  "condition": "...",
-  "price_ai_estimate": "..."
-}
+    {
+      "name": "",
+      "set": "",
+      "number": "",
+      "rarity": "",
+      "condition": "Near Mint",
+      "price_ai_estimate": "value in CAD"
+    }
 
-### RULES:
-- Condition must be one of:
-  "Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"
-- DO NOT use PSA grades or numbers.
-- If unsure, assume “Near Mint” unless visible damage suggests otherwise.
-- Estimate a realistic market price (CAD) based on recent sales.
-- Keep JSON valid and do not include commentary.
-"""
+    Condition must be TCG-style (Near Mint, Lightly Played, Moderately Played).
+    Do not use PSA grades.
+    """
 
-    response = client.chat.completions.create(
-        model="gpt-5.1",  # confirmed working model on your system
+    resp = client.chat.completions.create(
+        model="gpt-4.1",
         messages=[
-            {"role": "system", "content": "You are a Pokémon TCG card expert."},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{img_b64}"
-                        }
-                    }
-                ],
-            },
-        ],
-        temperature=0
+            {"role": "system", "content": prompt},
+            {"role": "user",
+             "content": [
+                 {"type": "input_text", "text": "Identify this card."},
+                 {"type": "input_image",
+                  "image_url": {"url": f"data:image/png;base64,{b64}"}
+                 }
+             ]}
+        ]
     )
 
     try:
-        result = response.choices[0].message.content.strip()
-        print("=== CARD AI RAW OUTPUT ===")
-        print(result)
-        data = eval(result) if result.startswith("{") else {}
-    except Exception as e:
-        print("AI JSON parse error:", e)
-        data = {}
-
-    # Fail-safe defaults so the app never breaks
-    return {
-        "name": data.get("name", "Unknown Card"),
-        "set": data.get("set", "Unknown Set"),
-        "number": data.get("number", "?"),
-        "rarity": data.get("rarity", "Unknown"),
-        "condition": data.get("condition", "Near Mint"),
-        "price_ai_estimate": data.get("price_ai_estimate", "0")
-    }
+        return json.loads(resp.choices[0].message.content)
+    except:
+        return {
+            "name": "Unknown",
+            "set": "Unknown",
+            "number": "",
+            "rarity": "",
+            "condition": "Near Mint",
+            "price_ai_estimate": "N/A"
+        }

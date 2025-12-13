@@ -1,4 +1,3 @@
-# app.py
 import os
 import json
 import uuid
@@ -8,10 +7,9 @@ from flask import Flask, request, jsonify, render_template, redirect
 from flask_basicauth import BasicAuth
 
 from card_detection import detect_card_boxes
-from card_cropper import crop_cards, create_thumbnail
+from card_cropper import crop_cards, crop_back_cards, create_thumbnail
 from card_ai import identify_and_grade_card
 from price_lookup import lookup_prices
-
 
 app = Flask(__name__)
 app.config.from_object("config")
@@ -20,8 +18,8 @@ basic_auth = BasicAuth(app)
 
 WEBHOOK_URL = os.getenv("MAKE_WEBHOOK_URL")
 
-# Ensure required folders exist
-for folder in ["uploads", "cropped", "static/thumbs", "session_data"]:
+# Required folders
+for folder in ["uploads", "cropped/front", "cropped/back", "static/thumbs", "session_data"]:
     os.makedirs(folder, exist_ok=True)
 
 
@@ -37,84 +35,69 @@ def upload():
     if request.method == "GET":
         return render_template("upload.html")
 
-    # ---------------------------
-    # 1. Save uploaded image
-    # ---------------------------
-    file = request.files["image"]
-    fname = f"{uuid.uuid4()}.png"
-    path = os.path.join("uploads", fname)
-    file.save(path)
+    # FRONT upload
+    f_front = request.files["front_image"]
+    fname_front = f"{uuid.uuid4()}_front.png"
+    path_front = os.path.join("uploads", fname_front)
+    f_front.save(path_front)
 
-    # ---------------------------
-    # 2. Detect bounding boxes
-    # ---------------------------
-    detection = detect_card_boxes(path)
+    # detect front card bounding boxes
+    detection = detect_card_boxes(path_front)
     boxes = detection.get("cards", [])
+    print("=== RAW DETECTION OUTPUT ===")
+    print(detection)
 
-    # ---------------------------
-    # 3. Crop cards
-    # ---------------------------
-    cropped_paths = crop_cards(path, boxes)
+    front_cards = crop_cards(path_front, boxes)
 
+    # BACK upload (optional)
+    back_cards = None
+    if request.form.get("include_back") == "yes" and "back_image" in request.files:
+        f_back = request.files["back_image"]
+        fname_back = f"{uuid.uuid4()}_back.png"
+        path_back = os.path.join("uploads", fname_back)
+        f_back.save(path_back)
+
+        back_cards = crop_back_cards(path_back, boxes)
+
+    # AI processing
     cards = []
 
-    # ---------------------------
-    # 4. Process each card
-    # ---------------------------
-    for idx, cpath in enumerate(cropped_paths, start=1):
+    for idx, front_path in enumerate(front_cards, start=1):
+        print(f"=== CARD AI ANALYSIS: {front_path}")
 
-        # AI identification
-        info = identify_and_grade_card(cpath)
+        analysis = identify_and_grade_card(front_path)
+        condition = analysis.get("condition", "Near Mint")
 
-        # Live price lookup
-        prices = lookup_prices(info["name"], info["set"])
+        # LIVE PRICES
+        prices = lookup_prices(analysis["name"], analysis["set"])
 
-        # Format price block
         tcg = prices.get("tcg")
         mk = prices.get("mk")
-        fx = prices.get("fx")
+        converted = prices.get("converted")
 
-        # Convert to CAD if available
-        cad_values = {
-            "tcg_cad": prices.get("tcg_cad"),
-            "mk_cad": prices.get("mk_cad")
-        }
+        auto_price = converted.get("cad") or analysis.get("price_ai_estimate", "N/A")
 
-        # Determine auto price
-        if prices.get("tcg_cad"):
-            auto_price = f"{prices['tcg_cad']} CAD"
-        elif prices.get("mk_cad"):
-            auto_price = f"{prices['mk_cad']} CAD"
-        else:
-            auto_price = info.get("price_ai_estimate")
+        # thumbnail
+        thumb_path = f"static/thumbs/{idx}.jpg"
+        create_thumbnail(front_path, thumb_path)
 
-        # Create thumbnail
-        thumb = f"static/thumbs/{idx}.jpg"
-        create_thumbnail(cpath, thumb)
-
-        # Build card object
         cards.append({
             "id": idx,
-            "image": cpath,
-            "image_thumb": thumb,
-
-            "name": info.get("name"),
-            "set": info.get("set"),
-            "number": info.get("number"),
-            "rarity": info.get("rarity"),
-            "condition": info.get("condition", "Near Mint"),
-            "price_ai_estimate": info.get("price_ai_estimate"),
-
+            "front_image": front_path,
+            "back_image": back_cards[idx - 1] if back_cards else None,
+            "image_thumb": thumb_path,
+            "name": analysis["name"],
+            "set": analysis["set"],
+            "number": analysis["number"],
+            "rarity": analysis["rarity"],
+            "condition": condition,
+            "price_ai_estimate": analysis.get("price_ai_estimate"),
             "tcg": tcg,
             "mk": mk,
-            "fx": fx,
-            "tcg_cad": cad_values["tcg_cad"],
-            "mk_cad": cad_values["mk_cad"],
-
+            "converted": converted,
             "auto_price": auto_price
         })
 
-    # Save to session file
     session_id = str(uuid.uuid4())
     with open(f"session_data/{session_id}.json", "w") as f:
         json.dump(cards, f, indent=2)
@@ -130,13 +113,6 @@ def review(session_id):
     return render_template("review.html", cards=cards, session_id=session_id)
 
 
-@app.route("/price_lookup", methods=["POST"])
-def price_api():
-    data = request.json
-    prices = lookup_prices(data["name"], data["set"])
-    return jsonify(prices)
-
-
 @app.route("/approve/<session_id>", methods=["POST"])
 @basic_auth.required
 def approve(session_id):
@@ -146,16 +122,15 @@ def approve(session_id):
     approved = []
 
     for card in cards:
-        cid = card["id"]
+        i = card["id"]
 
-        if f"approve_{cid}" in request.form:
-
-            card["name"] = request.form.get(f"name_{cid}")
-            card["set"] = request.form.get(f"set_{cid}")
-            card["number"] = request.form.get(f"number_{cid}")
-            card["rarity"] = request.form.get(f"rarity_{cid}")
-            card["condition"] = request.form.get(f"condition_{cid}")
-            card["price"] = request.form.get(f"price_{cid}")
+        if f"approve_{i}" in request.form:
+            card["name"] = request.form.get(f"name_{i}")
+            card["set"] = request.form.get(f"set_{i}")
+            card["number"] = request.form.get(f"number_{i}")
+            card["rarity"] = request.form.get(f"rarity_{i}")
+            card["condition"] = request.form.get(f"condition_{i}")
+            card["price"] = request.form.get(f"price_{i}")
 
             approved.append(card)
 

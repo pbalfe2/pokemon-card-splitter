@@ -1,78 +1,97 @@
 body {
-    font-family: Arial, sans-serif;
-    background: #f5f6fa;
     margin: 0;
-    padding: 0;
+    background: #f3f3f9;
+    font-family: Arial, sans-serif;
+}
+
+.navbar {
+    background: #4a3aff;
+    color: white;
+    padding: 18px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
 }
 
 .container {
-    width: 900px;
+    max-width: 900px;
     margin: auto;
+    padding: 20px;
+}
+
+.card {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+}
+
+.card.centered {
+    text-align: center;
+}
+
+.btn {
+    display: inline-block;
+    margin-top: 20px;
+    background: #4a3aff;
+    color: white;
+    padding: 12px 22px;
+    border-radius: 6px;
+    text-decoration: none;
+}
+
+.card-item {
     background: white;
     padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    gap: 20px;
+}
+
+.thumb {
+    width: 180px;
     border-radius: 8px;
 }
 
-.title {
-    margin-bottom: 10px;
+.small-thumb {
+    width: 120px;
+    opacity: 0.8;
 }
 
-.card-box {
-    display: flex;
-    border: 1px solid #ccc;
-    margin-bottom: 20px;
-    padding: 12px;
-    border-radius: 6px;
-    background: #fafafa;
+.field-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 8px;
 }
 
-.thumb-col {
-    width: 160px;
-}
-.thumb {
-    width: 150px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+.approve {
+    margin-left: auto;
+    font-weight: bold;
 }
 
-.info-col {
-    flex: 1;
-    padding-left: 20px;
+#loadingOverlay {
+    display: none;
+    position: fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    backdrop-filter: blur(4px);
+    background: rgba(0,0,0,0.4);
+    justify-content:center;
+    align-items:center;
+    flex-direction: column;
+    color:white;
+    font-size:18px;
 }
 
-.input {
-    width: 95%;
-    padding: 6px;
-    margin-bottom: 10px;
+.loader {
+    border: 6px solid #ddd;
+    border-top: 6px solid #4a3aff;
+    width: 60px;
+    height: 60px;
+    border-radius:50%;
+    animation: spin 1s linear infinite;
 }
 
-.price-section {
-    background: #eef1f5;
-    padding: 10px;
-    border-radius: 6px;
-    margin-bottom: 10px;
-}
-
-.price-block {
-    margin-bottom: 10px;
-}
-
-.price-rec {
-    padding: 8px;
-    background: #d1ffe1;
-    border-radius: 6px;
-    margin-top: 10px;
-}
-
-.submit-btn, .refresh-btn {
-    padding: 10px 16px;
-    background: #007bff;
-    border: none;
-    color: white;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.submit-btn:hover, .refresh-btn:hover {
-    background: #0056c1;
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }

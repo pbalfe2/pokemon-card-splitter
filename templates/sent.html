@@ -1,10 +1,9 @@
 {% extends "layout.html" %}
 {% block content %}
 
-<h2>Cards Sent</h2>
-
-<p>{{ count }} cards were successfully sent to your automation workflow.</p>
-
-<a href="/upload">Upload another card sheet</a>
+<div class="card centered">
+    <h2>Submitted Successfully</h2>
+    <p>{{ count }} cards sent to webhook.</p>
+</div>
 
 {% endblock %}
