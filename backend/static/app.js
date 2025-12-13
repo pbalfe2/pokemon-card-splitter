@@ -71,36 +71,48 @@ function renderResults(cards) {
     const confidence = Math.round((card.identity?.confidence || 0) * 100);
 
     output.innerHTML += `
-      <div class="card">
-        <div class="image-wrapper">
-          <img src="/${card.front}" alt="Card image" />
+      <div class="card-block">
+
+        <div class="card-left">
+          <img src="/${card.front}" alt="Card image">
         </div>
 
-        <div class="info">
-          <h2>${card.identity?.name || "Unknown card"}</h2>
-
-          <div class="meta">
-            ${card.identity?.set || ""} • ${card.identity?.number || ""}
-          </div>
-
-          <div class="details">
-            <div><strong>Condition:</strong> ${card.condition}</div>
-            <div><strong>Estimated price:</strong> $${card.price?.estimated_price ?? "—"}</div>
-          </div>
-
-          <div class="confidence ${confidence >= 80 ? "high" : "medium"}">
-            Confidence: ${confidence}%
-          </div>
-
-          ${card.errors.length ? `
-            <div class="warning">
-              ⚠ ${card.errors.join("<br>")}
+        <div class="card-right">
+          <div class="card-header">
+            <h2>${card.identity?.name || "Unknown card"}</h2>
+            <div class="card-sub">
+              ${card.identity?.set || ""} · ${card.identity?.number || ""}
             </div>
-          ` : ""}
+          </div>
+
+          <div class="card-stats">
+            <div class="stat">
+              <span class="label">Condition</span>
+              <span class="value">${card.condition}</span>
+            </div>
+
+            <div class="stat">
+              <span class="label">Est. Price</span>
+              <span class="value">$${card.price?.estimated_price ?? "—"}</span>
+            </div>
+
+            <div class="stat">
+              <span class="label">Confidence</span>
+              <span class="value ${confidence >= 80 ? "good" : "warn"}">
+                ${confidence}%
+              </span>
+            </div>
+          </div>
+
+          <div class="card-actions">
+            <button onclick="generateListing()">Generate eBay Listing</button>
+          </div>
         </div>
+
       </div>
     `;
   });
 }
+
 
 
