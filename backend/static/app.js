@@ -7,9 +7,6 @@ async function upload() {
     return;
   }
 
-  // 👇 FIX 4 — disable listing button during processing
-  document.getElementById("generateListing").disabled = true;
-
   const formData = new FormData();
   formData.append("front", front);
   if (back) formData.append("back", back);
@@ -74,7 +71,7 @@ function renderResults(cards) {
       <div class="card-block">
 
         <div class="card-left">
-          <img src="/${card.front}" alt="Card image">
+          <img src="/${card.front.replace(/^data\//, '')}" alt="Card image">
         </div>
 
         <div class="card-right">
