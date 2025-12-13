@@ -16,3 +16,7 @@ app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 @app.get("/")
 def index():
     return FileResponse("backend/static/index.html")
+
+from fastapi.staticfiles import StaticFiles
+
+app.mount("/data", StaticFiles(directory="data"), name="data")

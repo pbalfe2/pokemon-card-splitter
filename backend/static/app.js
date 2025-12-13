@@ -7,6 +7,9 @@ async function upload() {
     return;
   }
 
+  // 👇 FIX 4 — disable listing button during processing
+  document.getElementById("generateListing").disabled = true;
+
   const formData = new FormData();
   formData.append("front", front);
   if (back) formData.append("back", back);
@@ -43,10 +46,15 @@ async function pollJob(jobId) {
       output.innerHTML = `<div class="status processing">Analyzing cards…</div>`;
     }
 
-    if (job.status === "completed") {
-      clearInterval(interval);
-      renderResults(job.cards);
-    }
+if (job.status === "completed") {
+  clearInterval(interval);
+
+  renderResults(job.cards);
+
+  // 👇 FIX 4 — enable listing button now that analysis is done
+  document.getElementById("generateListing").disabled = false;
+}
+
 
     if (job.status === "failed") {
       clearInterval(interval);
@@ -64,28 +72,35 @@ function renderResults(cards) {
 
     output.innerHTML += `
       <div class="card">
-        <img src="/${card.front}" class="preview" />
+        <div class="image-wrapper">
+          <img src="/${card.front}" alt="Card image" />
+        </div>
 
         <div class="info">
-          <h3>${card.identity?.name || "Unknown card"}</h3>
-          <p class="meta">
+          <h2>${card.identity?.name || "Unknown card"}</h2>
+
+          <div class="meta">
             ${card.identity?.set || ""} • ${card.identity?.number || ""}
-          </p>
+          </div>
 
-          <p><strong>Condition:</strong> ${card.condition}</p>
-          <p><strong>Estimated price:</strong> $${card.price?.estimated_price ?? "—"}</p>
+          <div class="details">
+            <div><strong>Condition:</strong> ${card.condition}</div>
+            <div><strong>Estimated price:</strong> $${card.price?.estimated_price ?? "—"}</div>
+          </div>
 
-          <div class="confidence ${confidence < 70 ? "low" : "high"}">
+          <div class="confidence ${confidence >= 80 ? "high" : "medium"}">
             Confidence: ${confidence}%
           </div>
 
           ${card.errors.length ? `
             <div class="warning">
               ⚠ ${card.errors.join("<br>")}
-            </div>` : ""}
+            </div>
+          ` : ""}
         </div>
       </div>
     `;
   });
 }
+
 
