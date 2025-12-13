@@ -112,5 +112,5 @@ function renderResults(cards, jobFront) {
   "    </div>" +
   "  </div>" +
   "</div>";
-  });
+  })
 }
