@@ -41,7 +41,7 @@ async def process(job_id: str):
                     pair["front"], pair.get("back")
                 )
             except Exception as e:
-                card["errors"].append(str(e))
+                card["errors"].append(f"Identity error: {e}")
 
             try:
                 raw_condition = await grade_condition(
@@ -49,15 +49,16 @@ async def process(job_id: str):
                 )
                 card["condition"] = normalize_condition(raw_condition)
             except Exception as e:
-                card["errors"].append(str(e))
+                card["errors"].append(f"Condition error: {e}")
 
             try:
                 if card["identity"] and card["condition"]:
-                    card["price"] = await price_card(
+                    # IMPORTANT: price_card is synchronous
+                    card["price"] = price_card(
                         card["identity"], card["condition"]
                     )
             except Exception as e:
-                card["errors"].append(str(e))
+                card["errors"].append(f"Pricing error: {e}")
 
             results.append(card)
 
@@ -66,4 +67,7 @@ async def process(job_id: str):
         save_job(job_id, job)
 
     except Exception as fatal:
-        save_job(job_id, {"status": "failed", "error": str(fatal)})
+        save_job(job_id, {
+            "status": "failed",
+            "error": str(fatal)
+        })
